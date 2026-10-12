@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Клиентские пути PRO</title>
+<meta name="description" content="Демо-дашборд process mining по сайту и личному кабинету Лемана ПРО: воронка, карта процесса, время на шагах, барьеры. Данные синтетические.">
+<style>
+/* Lemana PRO Design System — токены
+   Метки источника:
+   [Бренд] — брендбук Лемана ПРО
+   [Сайт]  — снято с скриншотов lemanapro.ru (12.10.2026), по пикселям; радиусы и размеры ±2px
+   [Г]     — гипотеза, подтвердить у владельца бренда
+*/
+
+:root {
+  /* ── Бренд [Бренд] ─────────────────────────────── */
+  --lm-yellow: #FDC300;        /* единственный цвет действия и главный акцент */
+  --lm-graphite: #21282B;      /* текст и тёмные поверхности */
+  --lm-white: #FFFFFF;
+  --lm-olive-grey: #A0B9B1;
+  --lm-olive-dark: #6A8C81;    /* белый и графит на нём: 3.7 и 4.05 — только крупный текст */
+
+  /* Дополнительная палитра: не самостоятельная, только подложки и паттерны [Бренд] */
+  --lm-yellow-02: #FCB316;     /* LY02 */
+  --lm-yellow-03: #D79029;     /* LY03: в брендбуке HEX и RGB расходятся, взят HEX — подтвердить */
+
+  /* Палитра рекламы B2B [Бренд] — только рекламные материалы, не интерфейсы и не слайды */
+  --lm-brown-dark: #913300;
+  --lm-brown: #AC6640;
+  --lm-brown-light: #C89980;
+  --lm-brown-light-2: #E3CCC0;
+
+  /* ── Текст [Сайт] ──────────────────────────────── */
+  --lm-text: #21282B;            /* 14.97 на белом */
+  --lm-text-secondary: #5A5E60;  /* 6.55 на белом — вторичный текст по умолчанию */
+  --lm-text-muted: #919395;      /* 3.08 на белом: как на сайте (хлебные крошки, тег «ПРОМО»), не для основного текста */
+
+  /* ── Поверхности и границы [Сайт] ──────────────── */
+  --lm-surface: #FFFFFF;
+  --lm-surface-soft: #F5F4F1;    /* promo-карточка, активный пункт меню */
+  --lm-surface-field: #E3E1D8;   /* поле поиска, круглые кнопки, неактивные чипы */
+  --lm-surface-tile: #F4F4F4;    /* плитки каталога; холодный оттенок, на подтверждение */
+  --lm-border: #E3E1D8;          /* 1px: контейнеры и разделители */
+  --lm-border-outline: #D7D3C8;  /* 1px: контурные пилюли */
+  --lm-border-active: #21282B;   /* 2px: активная контурная пилюля */
+  --lm-track-off: #CCC6B8;       /* выключенный переключатель */
+
+  /* ── Функциональные [Сайт]: только иконки, бейджи, индикаторы ── */
+  --lm-icon-cyan: #1CAFD4;       /* иконки преимуществ; 2.58 на белом — не для текста */
+  --lm-badge-purple: #780C70;    /* бейдж «НОВИНКА», белый текст 10.07 */
+  --lm-red: #C90211;             /* иконка «Акции», точка уведомления; 6.0 на белом */
+  --lm-caption-accent: #BD7229;  /* капс-подпись под H1, 3.75 на белом — только крупный или жирный текст */
+  --lm-illustration-fill: #B8CAC4; /* заливка в иллюстрации пустого состояния (тинт Olive grey) */
+
+  /* ── Статусы [Г]: на референсах не представлены. Всегда с иконкой и словом ── */
+  --lm-status-error: #C90211;
+  --lm-status-success: #6A8C81;  /* иконка и заливка; текст рядом графитовый */
+  --lm-status-warning: #D79029;  /* жёлтый занят брендом, поэтому предупреждение — LY03 */
+
+  /* ── Шрифты ────────────────────────────────────── */
+  --lm-font-main: 'LM Main', 'Segoe UI', Roboto, Arial, sans-serif;
+  --lm-font-title: 'LM Title', 'LM Main', 'Segoe UI', Arial, sans-serif;
+  --lm-fw-light: 300;
+  --lm-fw-regular: 400;
+  --lm-fw-medium: 500;
+  --lm-fw-semibold: 600;
+  --lm-fw-bold: 700;
+
+  /* Размеры интерфейса [Сайт ±2px] */
+  --lm-fs-h1: 40px;
+  --lm-fs-h2: 28px;
+  --lm-fs-h3: 22px;
+  --lm-fs-body: 18px;
+  --lm-fs-ui: 16px;
+  --lm-fs-small: 14px;
+  --lm-lh-heading-ui: 1.15;      /* [Сайт] */
+  --lm-lh-body: 1.5;             /* [Сайт] */
+  --lm-lh-heading-brand: 1;      /* [Бренд] баннеры и слайды: интерлиньяж заголовка 100% */
+
+  /* ── Форма [Сайт ±2px] ─────────────────────────── */
+  --lm-r-sm: 4px;      /* поля, кнопки, плитки */
+  --lm-r-md: 8px;      /* карточки, promo, пункт меню, аккордеон */
+  --lm-r-lg: 12px;     /* hero-баннер */
+  --lm-r-pill: 999px;  /* чипы, теги; круглые кнопки — 50% */
+
+  --lm-h-control: 54px;  /* элементы шапки: меню, поиск, круглые кнопки */
+  --lm-h-button: 52px;   /* основная кнопка */
+  --lm-h-chip: 36px;     /* чип */
+
+  --lm-shadow-card: 0 2px 8px rgba(33, 40, 43, 0.12);    /* [Сайт] */
+  --lm-shadow-header: 0 4px 16px rgba(33, 40, 43, 0.05); /* [Сайт] */
+  --lm-shadow-hover: 0 6px 20px rgba(33, 40, 43, 0.16);  /* [Г] */
+
+  /* Отступы [Г] */
+  --lm-s-1: 4px;  --lm-s-2: 8px;  --lm-s-3: 12px; --lm-s-4: 16px;
+  --lm-s-5: 24px; --lm-s-6: 32px; --lm-s-7: 48px; --lm-s-8: 64px;
+
+  /* Слайды [Г]: 1920×1080 */
+  --lm-slide-w: 1920px;
+  --lm-slide-h: 1080px;
+  --lm-slide-margin: 96px;
+  --lm-slide-title: 64px;
+  --lm-slide-subtitle: 32px;
+  --lm-slide-body: 28px;
+  --lm-slide-caption: 22px;
+}
+
+
+
+/* Макет: шапка-баннер, панель фильтров, ряд KPI, воронка рядом с барьерами, карта процесса на всю ширину, время и таблица. */
+:root{
+  --c-forward: var(--lm-graphite);
+  --c-loop: var(--lm-yellow-03);
+  --c-lost: #919395;
+  --c-off: var(--lm-graphite);
+  --c-ok: var(--lm-graphite);
+  --c-inv: var(--lm-yellow);
+  --c-sev-high: var(--lm-status-error);
+  --c-sev-mid: var(--lm-status-warning);
+  --wrap: 1320px;
+  color-scheme: light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--lm-surface);color:var(--lm-text);font-family:var(--lm-font-main);font-size:var(--lm-fs-ui);line-height:var(--lm-lh-body);padding-inline:16px;padding-block:20px 48px}
+.wrap{max-width:var(--wrap);margin:0 auto;display:flex;flex-direction:column;gap:24px}
+h1,h2,h3,p{margin:0}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--lm-graphite);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.muted{color:var(--lm-text-secondary)}
+.num{font-variant-numeric:tabular-nums}
+
+/* Шапка */
+.hero{background:var(--lm-yellow);border-radius:var(--lm-r-lg);padding:24px 28px;display:flex;flex-wrap:wrap;gap:20px 32px;align-items:flex-end;justify-content:space-between}
+.hero__main{display:flex;flex-direction:column;gap:12px;min-width:0}
+.logo{align-self:flex-start;background:var(--lm-graphite);border-radius:var(--lm-r-md);padding:12px 18px;display:flex}
+.logo img{display:block;height:44px;width:auto;max-width:100%}
+.hero h1{font-size:clamp(28px,4.2vw,40px);line-height:var(--lm-lh-heading-ui);font-weight:700;text-wrap:balance}
+.hero p{font-size:var(--lm-fs-body);max-width:62ch}
+.tags{display:flex;flex-wrap:wrap;gap:8px}
+.tag{display:inline-flex;align-items:center;height:36px;padding:0 16px;border-radius:var(--lm-r-pill);background:#fff;font-weight:500;font-size:var(--lm-fs-ui)}
+
+/* Панели */
+.card{border:1px solid var(--lm-border);border-radius:var(--lm-r-md);background:#fff;padding:24px;min-width:0}
+.card__head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 24px;align-items:flex-start;margin-bottom:16px}
+.card h2{font-size:var(--lm-fs-h3);font-weight:500;line-height:var(--lm-lh-heading-ui);text-wrap:balance}
+.card .sub{font-size:var(--lm-fs-small);color:var(--lm-text-secondary);max-width:70ch}
+
+/* Фильтры */
+.ctl-wrap{background:var(--lm-surface-soft);border-radius:var(--lm-r-md);padding:16px 20px}
+.ctl{display:flex;flex-wrap:wrap;gap:14px 32px;align-items:flex-end}
+.grp{display:flex;flex-direction:column;gap:6px;min-width:0}
+.grp__label{font-size:var(--lm-fs-small);color:var(--lm-text-secondary)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{height:var(--lm-h-chip);padding:0 14px;border:0;border-radius:var(--lm-r-pill);background:var(--lm-surface-field);color:var(--lm-text);font-weight:500;font-size:var(--lm-fs-ui);cursor:pointer;transition:background .15s}
+.ctl-wrap .chip{background:#fff}
+.chip:hover,.ctl-wrap .chip:hover{background:var(--lm-surface-field)}
+.chip[aria-pressed="true"],.ctl-wrap .chip[aria-pressed="true"]{background:var(--lm-graphite);color:#fff}
+.reset{height:var(--lm-h-chip);padding:0 4px;border:0;background:none;font-weight:500;text-decoration:underline;cursor:pointer}
+.note{font-size:var(--lm-fs-small);color:var(--lm-text-secondary)}
+.btn2{height:44px;padding:0 20px;border:1px solid var(--lm-graphite);border-radius:var(--lm-r-sm);background:#fff;font-weight:600;cursor:pointer}
+.btn2:hover{background:var(--lm-surface-soft)}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}
+.kpi{background:var(--lm-surface-soft);border-radius:var(--lm-r-md);padding:18px 20px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.kpi__label{font-size:var(--lm-fs-small);color:var(--lm-text-secondary)}
+.kpi__val{font-size:var(--lm-fs-h2);font-weight:700;line-height:1.15}
+.kpi__sub{font-size:var(--lm-fs-small);color:var(--lm-text-secondary)}
+
+/* Воронка + барьеры */
+.cols{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:1020px){.cols{grid-template-columns:minmax(0,1fr)}}
+.fun{display:flex;flex-direction:column;gap:18px}
+.fstep{display:flex;flex-direction:column;gap:6px}
+.fstep__top{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 16px;align-items:baseline}
+.fstep__name{font-weight:600}
+.fstep__val{font-weight:600;font-variant-numeric:tabular-nums}
+.fstep__sub{font-size:var(--lm-fs-small);color:var(--lm-text-secondary)}
+.bar{height:28px;background:var(--lm-surface-soft);border-radius:var(--lm-r-sm);display:flex;gap:2px;overflow:hidden}
+.bar > i{display:block;height:100%;min-width:0;transition:width .3s}
+.fstep__meta{font-size:var(--lm-fs-small);color:var(--lm-text-secondary)}
+.fstep__meta b{color:var(--lm-text);font-weight:600}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:var(--lm-fs-small);font-weight:600}
+.fstep--nodata{border-top:1px dashed var(--lm-border-outline);padding-top:14px}
+.fstep--nodata .bar{background:repeating-linear-gradient(45deg,var(--lm-surface-soft) 0 8px,#fff 8px 16px)}
+
+.flags{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.flag{border:1px solid var(--lm-border);border-radius:var(--lm-r-md);padding:14px 16px;display:flex;flex-direction:column;gap:6px;cursor:pointer;background:#fff;text-align:left;width:100%}
+.flag:hover{background:var(--lm-surface-soft)}
+.flag[aria-pressed="true"]{border:2px solid var(--lm-graphite);padding:13px 15px;background:var(--lm-surface-soft)}
+.flag__top{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.sev{display:inline-flex;align-items:center;gap:6px;font-size:var(--lm-fs-small);font-weight:600}
+.typechip{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:var(--lm-r-pill);background:var(--lm-surface-field);font-size:13px;font-weight:500}
+.flag__node{font-weight:600}
+.flag__metric{font-size:var(--lm-fs-ui)}
+.flag__hyp{font-size:var(--lm-fs-small);color:var(--lm-text-secondary)}
+.more{margin-top:12px}
+.empty{padding:28px 16px;text-align:center;color:var(--lm-text-secondary);border:1px dashed var(--lm-border-outline);border-radius:var(--lm-r-md)}
+
+/* Граф */
+.layers{display:flex;flex-wrap:wrap;gap:8px}
+.graph{position:relative;overflow-x:auto;border:1px solid var(--lm-border);border-radius:var(--lm-r-md);background:#fff}
+.graph svg{display:block;min-width:1000px;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:12px;font-size:var(--lm-fs-small);color:var(--lm-text-secondary)}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.legend svg{width:40px;height:10px;overflow:visible}
+.tip{position:absolute;z-index:3;pointer-events:none;background:var(--lm-graphite);color:#fff;border-radius:var(--lm-r-sm);padding:10px 12px;font-size:var(--lm-fs-small);line-height:1.4;max-width:300px;box-shadow:var(--lm-shadow-hover)}
+.tip b{font-weight:600}
+.tip div{margin-top:2px}
+.node{cursor:pointer}
+.node:focus-visible{outline:none}
+.node:focus-visible rect.nbox{stroke:var(--lm-graphite);stroke-width:3}
+.glabel{font-size:12px;font-weight:600;fill:var(--lm-text);paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}
+.gband{fill:var(--lm-surface-soft)}
+.gcap{font-size:12px;font-weight:500;fill:var(--lm-text-secondary);letter-spacing:.06em}
+
+/* Время */
+.trows{display:flex;flex-direction:column;gap:14px}
+.trow{display:grid;grid-template-columns:150px minmax(0,1fr) 190px;gap:8px 16px;align-items:center}
+@media (max-width:720px){.trow{grid-template-columns:minmax(0,1fr)}}
+.trow__name{font-weight:600}
+.track{position:relative;height:22px;background:var(--lm-surface-soft);border-radius:var(--lm-r-sm)}
+.track i{position:absolute;left:0;top:0;bottom:0;border-radius:var(--lm-r-sm);transition:width .3s}
+.track u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--lm-graphite);box-shadow:0 0 0 1.5px #fff;text-decoration:none}
+.trow__val{font-size:var(--lm-fs-small);font-variant-numeric:tabular-nums}
+
+/* Таблица */
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:780px;font-size:var(--lm-fs-small);font-variant-numeric:tabular-nums}
+th{font-weight:500;color:var(--lm-text-secondary);text-align:right;padding:8px 10px;border-bottom:1px solid var(--lm-border)}
+td{padding:10px;text-align:right;border-bottom:1px solid var(--lm-border)}
+th:first-child,td:first-child{text-align:left}
+td:first-child{font-weight:600}
+td.hit{font-weight:700;box-shadow:inset 0 -3px 0 var(--c-sev-mid)}
+td.hit.hi{box-shadow:inset 0 -3px 0 var(--c-sev-high)}
+tr.is-sel td{background:var(--lm-surface-soft)}
+
+/* Журнал событий */
+details{border:1px solid var(--lm-border);border-radius:var(--lm-r-md);padding:0}
+summary{cursor:pointer;padding:18px 24px;font-size:var(--lm-fs-h3);font-weight:500;list-style:none;display:flex;justify-content:space-between;gap:12px;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-size:28px;line-height:1;font-weight:400}
+details[open] summary::after{content:"\2212"}
+.det{padding:0 24px 24px;display:flex;flex-direction:column;gap:16px}
+.det ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+.foot{font-size:var(--lm-fs-small);color:var(--lm-text-secondary);max-width:100ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:560px){.hero{padding:20px 18px}.card{padding:18px 16px}}
+/* SVG карты процесса */
+.e{fill:none;transition:opacity .15s}
+.e-fwd{stroke:var(--c-forward)}
+.e-loop{stroke:var(--c-loop)}
+.e-lost{stroke:var(--c-lost);stroke-dasharray:2 6}
+.e-store{stroke:var(--c-off);stroke-dasharray:10 6}
+.e-tele{stroke:var(--c-off);stroke-dasharray:10 6}
+.mk-fwd{fill:var(--c-forward)}.mk-loop{fill:var(--c-loop)}.mk-lost{fill:var(--c-lost)}.mk-off{fill:var(--c-off)}
+.elab{transition:opacity .15s}
+.nbox{fill:#fff;stroke:var(--lm-text-muted);stroke-width:1.5}
+.nbox.exit{fill:var(--lm-surface-field)}
+.nbox.done{fill:var(--lm-yellow)}
+.nt1{font-size:13px;font-weight:600;fill:var(--lm-text)}
+.nt2{font-size:12px;fill:var(--lm-text)}
+.nbadge-t{font-size:14px;font-weight:700;text-anchor:middle}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="hero__main">
+      <div class="logo"><img src="data:image/png;base64,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" width="600" height="162" alt="Лемана ПРО"></div>
+      <h1>Клиентские пути PRO</h1>
+      <p>Process mining по сайту и личному кабинету Лемана ПРО: где клиенты теряются, повторяют шаги и уходят в магазин или телемаркетинг.</p>
+    </div>
+    <div class="tags"><span class="tag">Демо</span><span class="tag">Синтетические данные</span></div>
+  </header>
+
+  <section class="ctl-wrap" aria-label="Срез"><div class="ctl" id="ctl"></div></section>
+
+  <section class="kpis" id="kpis" aria-label="Ключевые показатели"></section>
+
+  <div class="cols">
+    <section class="card" aria-label="Воронка">
+      <div class="card__head"><h2>Воронка: сколько клиентов дошло до каждого шага</h2><p class="sub">Сессии, дошедшие до шага или дальше</p></div>
+      <div class="fun" id="funnel"></div>
+    </section>
+    <section class="card" aria-label="Барьеры и узкие места">
+      <div class="card__head"><h2>Барьеры и узкие места</h2><p class="sub">Причины — гипотезы [Г]. Нажмите на барьер, чтобы увидеть шаг на карте.</p></div>
+      <ul class="flags" id="flags"></ul>
+      <button class="btn2 more" id="more" type="button" hidden></button>
+    </section>
+  </div>
+
+  <section class="card" aria-label="Карта процесса">
+    <div class="card__head">
+      <div><h2>Карта процесса: как клиенты ходят на самом деле</h2><p class="sub">Толщина линии — число переходов. В шаге: визиты и время. Наведите на шаг, чтобы увидеть детали.</p></div>
+    </div>
+    <div class="graph" id="graph"><div class="tip" id="tip" hidden></div></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section class="card" aria-label="Время на шагах">
+    <div class="card__head"><h2>Время на шагах</h2><p class="sub">Типичное время на странице (медиана, в срезе взвешена по визитам). Чёрная отметка показывает цель, цели в демо заданы как гипотезы [Г].</p></div>
+    <div class="trows" id="times"></div>
+  </section>
+
+  <section class="card" aria-label="Метрики по шагам">
+    <div class="card__head"><h2>Метрики по шагам</h2><p class="sub">Доли считаются от визитов на шаге. Выделены значения выше порога.</p></div>
+    <div class="tablewrap"><table id="tbl"></table></div>
+  </section>
+
+  <details>
+    <summary>Что нужно от данных, чтобы собрать это на реальном журнале событий</summary>
+    <div class="det">
+      <p class="muted">Каждая строка журнала — одно событие клиента на сайте или в ЛК. Из такого журнала строятся воронка, карта процесса и время на шагах.</p>
+      <div class="tablewrap"><table>
+        <thead><tr><th>case_id</th><th>activity</th><th>timestamp</th><th>channel</th><th>segment</th><th>org_size</th><th>role</th><th>org_id</th></tr></thead>
+        <tbody class="mono">
+          <tr><td>s-48211</td><td>Открыл главную</td><td>10:02:11</td><td>site</td><td>B2B</td><td>small</td><td>buyer</td><td>—</td></tr>
+          <tr><td>s-48211</td><td>Вошёл в ЛК</td><td>10:02:40</td><td>lk</td><td>B2B</td><td>small</td><td>buyer</td><td>org-0417</td></tr>
+          <tr><td>s-48211</td><td>Поиск в каталоге</td><td>10:03:05</td><td>lk</td><td>B2B</td><td>small</td><td>buyer</td><td>org-0417</td></tr>
+          <tr><td>s-48211</td><td>Добавил в корзину</td><td>10:05:32</td><td>lk</td><td>B2B</td><td>small</td><td>buyer</td><td>org-0417</td></tr>
+          <tr><td>s-48211</td><td>Ошибка: неверный ИНН</td><td>10:08:50</td><td>lk</td><td>B2B</td><td>small</td><td>buyer</td><td>org-0417</td></tr>
+          <tr><td>s-48211</td><td>Запросил счёт</td><td>10:09:44</td><td>lk</td><td>B2B</td><td>small</td><td>buyer</td><td>org-0417</td></tr>
+        </tbody>
+      </table></div>
+      <p><b>Что нужно связать, чтобы увидеть выходы из онлайна [Г]:</b></p>
+      <ul>
+        <li>Сессию на сайте с организацией и ролью клиента (org_id), в том числе до входа в ЛК.</li>
+        <li>Выход в телемаркетинг со звонком менеджера: по номеру телефона или org_id в течение суток.</li>
+        <li>Выход в магазин с чеком или заказом в PRO-зоне: по org_id или карте PRO.</li>
+        <li>Оплату счёта из учётной системы. Сайт её не видит, поэтому в воронке нет шага «оплатили счёт».</li>
+      </ul>
+    </div>
+  </details>
+
+  <p class="foot">Все числа в демо синтетические: поведение смоделировано по сегменту, размеру бизнеса, роли и точке контакта. Пороги, цели по времени, границы размеров бизнеса и причины барьеров заданы как гипотезы [Г] и не основаны на данных Лемана ПРО.</p>
+</div>
+
+<script>
+/* ===== Модель клиентских путей (синтетическая). Марковская цепь с учётом максимального достигнутого этапа. ===== */
+const NODE_IDS = ['home','login','search','pdp','reorder','cart','checkout','pay','done_inv','done_card','lost','store','tele'];
+const TRANSIENT = ['home','login','search','pdp','reorder','cart','checkout','pay'];
+const EXITS = ['lost','store','tele'];
+const DONE = ['done_inv','done_card'];
+const RANK = {home:0,login:0,search:1,pdp:1,reorder:1,cart:2,checkout:3,pay:4,done_inv:5,done_card:5};
+
+const NODE_NAME = {
+  home:'Главная', login:'Вход в ЛК', search:'Каталог, поиск', pdp:'Карточка товара', reorder:'Повторный заказ',
+  cart:'Корзина', checkout:'Оформление', pay:'Оплата / счёт', done_inv:'Счёт выставлен', done_card:'Оплачено картой',
+  lost:'Ушли без заказа', store:'Ушли в магазин', tele:'Ушли в телемаркетинг'
+};
+const NODE_HINT = {
+  home:'Главная страница сайта', login:'Вход в личный кабинет', search:'Каталог, поиск, фильтры', pdp:'Страница товара',
+  reorder:'Повтор прошлого заказа в ЛК', cart:'Корзина, правка количества', checkout:'Шаг после нажатия «Купить»',
+  pay:'Выбор оплаты, форма запроса счёта'
+};
+
+/* Базовые веса переходов (относительные, нормируются). */
+const BASE_W = {
+  home:    {search:40, pdp:7, login:6, lost:41, store:3, tele:3},
+  login:   {home:6, search:20, reorder:24, pay:3, login:6, lost:24, store:2, tele:4},
+  search:  {pdp:52, search:14, home:3, lost:22, store:5, tele:4},
+  pdp:     {cart:22, search:24, pdp:9, lost:30, store:9, tele:6},
+  reorder: {cart:48, search:10, reorder:5, lost:22, store:3, tele:7},
+  cart:    {checkout:36, search:15, pdp:6, cart:6, lost:21, store:7, tele:9},
+  checkout:{pay:55, cart:9, checkout:6, login:12, lost:13, store:3, tele:6},
+  pay:     {done:56, pay:11, login:4, checkout:4, cart:2, lost:13, store:3, tele:8}
+};
+/* Переходы, которые считаем петлями и возвратами. */
+const LOOP_EDGES = new Set(['login>login','search>search','pdp>pdp','reorder>reorder','cart>cart','checkout>checkout','pay>pay',
+  'cart>search','cart>pdp','checkout>cart','pay>checkout','pay>cart','checkout>login','pay>login','search>home']);
+
+/* Типичное время на шаге (медиана, с) и цель [Г]. */
+const BASE_TIME = {home:18, login:22, search:41, pdp:52, reorder:34, cart:63, checkout:96, pay:null};
+const TARGET_TIME = {home:20, login:25, search:45, pdp:55, reorder:35, cart:60, checkout:90, pay:120};
+/* Пороги флагов [Г]. */
+const TH = {
+  lost:   {home:.45, login:.26, search:.24, pdp:.30, reorder:.22, cart:.22, checkout:.14, pay:.115},
+  loop:   {login:.08, search:.11, pdp:.12, reorder:.08, cart:.28, checkout:.24, pay:.22, home:.99},
+  offline:{home:.08, login:.10, search:.12, pdp:.17, reorder:.12, cart:.17, checkout:.12, pay:.17},
+  time: 1.3
+};
+
+const SEG = {
+  b2c:{label:'B2C', inv:.03, lost:1.15, store:1.35, tele:.5, loop:.9, time:.9, edge:{'login>reorder':.25,'checkout>login':.5,'pay>login':.4}},
+  pro:{label:'Профи', inv:.28, lost:1, store:1.6, tele:.9, loop:1, time:.95, edge:{'login>reorder':.9,'pdp>cart':1.15}},
+  b2b:{label:'B2B', inv:.82, lost:.95, store:.9, tele:1.35, loop:1.1, time:1.15, edge:{'login>reorder':1.3,'cart>checkout':.9}}
+};
+const SIZES = ['micro','small','mid','large'];
+const SIZE = {
+  micro:{label:'Микро', loop:1, tele:.8, store:1.35, lost:1.1, time:.8, edge:{'cart>checkout':1.1,'pay>pay':.8}},
+  small:{label:'Малый', loop:1.1, tele:1, store:1.1, lost:1, time:1, edge:{'pay>pay':1}},
+  mid:  {label:'Средний', loop:1.25, tele:1.4, store:.85, lost:.95, time:1.25, edge:{'cart>checkout':.85,'pay>pay':1.3}},
+  large:{label:'Крупный', loop:1.5, tele:1.9, store:.55, lost:.9, time:1.6, edge:{'cart>checkout':.7,'pay>pay':1.7,'cart>search':1.2}}
+};
+const ROLES = ['buyer','exec','acc','head'];
+const ROLE = {
+  buyer:{label:'Закупщик', edge:{}},
+  exec: {label:'Исполнитель', store:1.8, lost:1.15, time:.85, invMul:.5, edge:{'pdp>cart':.75,'cart>checkout':.55,'search>search':1.3}},
+  acc:  {label:'Бухгалтерия', tele:1.2, loop:1.1, time:1.1, invSet:.95, edge:{'home>search':.45,'login>search':.4,'login>reorder':.6,'login>pay':4,'checkout>pay':1.1,'pay>pay':1.3}},
+  head: {label:'Руководитель', lost:1.3, tele:1.3, time:.75, edge:{'pdp>cart':.6,'cart>checkout':.7}}
+};
+
+/* Объём сессий за 30 дней (синтетика). */
+const VOL = {
+  b2c:{site:168000, lk:18000},
+  pro:{site:52000, lk:22000},
+  b2b:{site:20900, lk:17100}
+};
+const SIZE_SPLIT = {micro:.40, small:.32, mid:.18, large:.10};
+const ROLE_SPLIT = {site:{buyer:.40, exec:.34, acc:.08, head:.18}, lk:{buyer:.36, exec:.16, acc:.32, head:.16}};
+const START = {
+  site:{home:.58, search:.17, pdp:.21, login:.04},
+  lk:{login:1}
+};
+
+function mods(c){
+  const s = SEG[c.seg], z = c.size ? SIZE[c.size] : null, r = c.role ? ROLE[c.role] : null;
+  let inv = s.inv;
+  if (r && r.invMul) inv *= r.invMul;
+  if (r && r.invSet) inv = r.invSet;
+  const m = {inv, lost:s.lost, store:s.store, tele:s.tele, loop:s.loop, time:s.time, edge:Object.assign({}, s.edge)};
+  [z, r].forEach(o => { if (!o) return;
+    ['lost','store','tele','loop','time'].forEach(k => { if (o[k]) m[k] *= o[k]; });
+    Object.entries(o.edge || {}).forEach(([k,v]) => { m.edge[k] = (m.edge[k] || 1) * v; });
+  });
+  if (c.tp === 'lk') {
+    m.edge['checkout>login'] = (m.edge['checkout>login'] || 1) * .08;
+    m.edge['pay>login'] = (m.edge['pay>login'] || 1) * .08;
+    m.edge['login>login'] = (m.edge['login>login'] || 1) * .5;
+  }
+  m.edge['pay>pay'] = (m.edge['pay>pay'] || 1) * (0.25 + 0.9 * inv) / 0.7;
+  return m;
+}
+
+function buildP(c){
+  const m = mods(c), P = {};
+  TRANSIENT.forEach(n => {
+    const w = {};
+    Object.entries(BASE_W[n]).forEach(([t, v]) => {
+      if (t === 'done') { w.done_inv = v * m.inv; w.done_card = v * (1 - m.inv); return; }
+      let x = v; const key = n + '>' + t;
+      if (t === 'lost') x *= m.lost; else if (t === 'store') x *= m.store; else if (t === 'tele') x *= m.tele;
+      if (LOOP_EDGES.has(key)) x *= m.loop;
+      if (m.edge[key]) x *= m.edge[key];
+      w[t] = x;
+    });
+    const sum = Object.values(w).reduce((a, b) => a + b, 0);
+    Object.keys(w).forEach(t => { w[t] /= sum; });
+    P[n] = w;
+  });
+  return {P, m};
+}
+
+/* Расчёт на одну сессию: визиты, потоки, поглощение по (исход, максимальный этап). */
+function simulate(c){
+  const {P, m} = buildP(c);
+  const visits = {}, flows = {}, absorbed = {};
+  let cur = {};
+  Object.entries(START[c.tp]).forEach(([n, v]) => { cur[n + '|' + RANK[n]] = (cur[n + '|' + RANK[n]] || 0) + v; });
+  for (let it = 0; it < 4000; it++) {
+    const next = {}; let mass = 0;
+    for (const key in cur) {
+      const [n, mr] = key.split('|'); const rk = +mr; const v = cur[key];
+      visits[n] = (visits[n] || 0) + v;
+      for (const t in P[n]) {
+        const f = v * P[n][t]; const e = n + '>' + t;
+        flows[e] = (flows[e] || 0) + f;
+        if (TRANSIENT.includes(t)) { const k2 = t + '|' + Math.max(rk, RANK[t]); next[k2] = (next[k2] || 0) + f; mass += f; }
+        else { const ak = t + '|' + Math.max(rk, RANK[t] || 0); absorbed[ak] = (absorbed[ak] || 0) + f; }
+      }
+    }
+    cur = next; if (mass < 1e-13) break;
+  }
+  const time = {};
+  TRANSIENT.forEach(n => {
+    const base = n === 'pay' ? 95 + m.inv * 85 : BASE_TIME[n];
+    time[n] = base * m.time;
+  });
+  return {visits, flows, absorbed, time, inv:m.inv};
+}
+
+/* Когорты. */
+function buildCohorts(){
+  const out = [];
+  ['b2c','pro'].forEach(seg => ['site','lk'].forEach(tp => out.push({seg, tp, size:null, role:null, sessions:VOL[seg][tp]})));
+  ['site','lk'].forEach(tp => SIZES.forEach(size => ROLES.forEach(role =>
+    out.push({seg:'b2b', tp, size, role, sessions:VOL.b2b[tp] * SIZE_SPLIT[size] * ROLE_SPLIT[tp][role]}))));
+  out.forEach(c => { c.sim = simulate(c); });
+  return out;
+}
+
+/* Фильтр -> список когорт. f: {seg:'all|b2c|pro', sub:'all|b2b|pro', size, role, tp} */
+function selectCohorts(all, f){
+  return all.filter(c => {
+    if (f.seg === 'b2c' && c.seg !== 'b2c') return false;
+    if (f.seg === 'pro') {
+      if (c.seg === 'b2c') return false;
+      if (f.sub === 'b2b' && c.seg !== 'b2b') return false;
+      if (f.sub === 'pro' && c.seg !== 'pro') return false;
+    }
+    if (f.size !== 'all' && c.size !== f.size) return false;
+    if (f.role !== 'all' && c.role !== f.role) return false;
+    if (f.tp !== 'all' && c.tp !== f.tp) return false;
+    return true;
+  });
+}
+
+/* Агрегация по списку когорт. */
+function aggregate(list, scale){
+  const A = {sessions:0, visits:{}, flows:{}, timeNum:{}, absorbed:{}, doneInv:0, doneCard:0};
+  list.forEach(c => {
+    const S = c.sessions * scale; A.sessions += S;
+    Object.entries(c.sim.visits).forEach(([n, v]) => {
+      A.visits[n] = (A.visits[n] || 0) + v * S;
+      A.timeNum[n] = (A.timeNum[n] || 0) + v * S * c.sim.time[n];
+    });
+    Object.entries(c.sim.flows).forEach(([e, v]) => { A.flows[e] = (A.flows[e] || 0) + v * S; });
+    Object.entries(c.sim.absorbed).forEach(([k, v]) => { A.absorbed[k] = (A.absorbed[k] || 0) + v * S; });
+  });
+  A.time = {};
+  TRANSIENT.forEach(n => { A.time[n] = A.visits[n] ? A.timeNum[n] / A.visits[n] : TARGET_TIME[n]; });
+  return A;
+}
+
+const FUNNEL_STEPS = [
+  {rank:0, name:'Вошли на сайт или в ЛК', sub:'главная или вход в кабинет'},
+  {rank:1, name:'Начали искать товары', sub:'каталог, поиск, карточка товара, повторный заказ'},
+  {rank:2, name:'Добавили в корзину', sub:'хотя бы одна позиция'},
+  {rank:3, name:'Нажали «Купить»', sub:'дошли до оформления'},
+  {rank:4, name:'Дошли до оплаты или запроса счёта', sub:'выбор способа оплаты, форма счёта'},
+  {rank:5, name:'Оформили заказ или получили счёт', sub:'счёт выставлен или заказ оплачен картой'}
+];
+
+function funnel(A){
+  const reach = [0,0,0,0,0,0], stopped = FUNNEL_STEPS.map(() => ({lost:0, store:0, tele:0, done_inv:0, done_card:0}));
+  Object.entries(A.absorbed).forEach(([k, v]) => {
+    const [out, r] = k.split('|'); const rk = +r;
+    for (let i = 0; i <= rk; i++) reach[i] += v;
+    stopped[rk][out] += v;
+  });
+  return FUNNEL_STEPS.map((s, i) => Object.assign({}, s, {reach:reach[i], stopped:stopped[i]}));
+}
+
+function nodeMetrics(A){
+  const M = {};
+  TRANSIENT.forEach(n => {
+    const v = A.visits[n] || 0, g = e => A.flows[n + '>' + e] || 0;
+    let loops = 0; Object.keys(A.flows).forEach(e => { if (e.startsWith(n + '>') && LOOP_EDGES.has(e)) loops += A.flows[e]; });
+    M[n] = {visits:v, lost:g('lost'), store:g('store'), tele:g('tele'), loops,
+      lostR: v ? g('lost') / v : 0, loopR: v ? loops / v : 0, offR: v ? (g('store') + g('tele')) / v : 0,
+      time:A.time[n], target:TARGET_TIME[n], ratio:A.time[n] / TARGET_TIME[n]};
+  });
+  return M;
+}
+
+const HYP = {
+  'home:lost':'Нет быстрых входов: «Повторить заказ», «Счета»',
+  'login:lost':'Вход обрывается на пароле, коде или выборе организации',
+  'login:loop':'Повторные входы: сброс пароля, несколько юрлиц',
+  'search:lost':'Не находят товар по артикулу или названию',
+  'search:loop':'Уточняют запрос по несколько раз: слабые фильтры',
+  'search:time':'Долгий подбор: нет сравнения и быстрого добавления',
+  'pdp:lost':'Не видно цены PRO, наличия и срока доставки',
+  'pdp:offline':'Цену и наличие уточняют в магазине или у менеджера',
+  'pdp:loop':'Возврат между карточками: нет сравнения аналогов',
+  'reorder:lost':'Повторный заказ не подтягивает прошлые позиции',
+  'cart:lost':'Нет итога с НДС и скидкой PRO, нельзя сохранить корзину',
+  'cart:loop':'Возвращаются добирать позиции: нет подсказки по комплекту',
+  'cart:offline':'Скидку и доставку согласуют с менеджером',
+  'cart:time':'Долго правят позиции: нет загрузки списка из файла',
+  'checkout:lost':'Требуют вход, юрлицо и адрес объекта: клиент уходит',
+  'checkout:loop':'Принудительный вход и ошибки формы возвращают назад',
+  'checkout:time':'Много полей: юрлицо, адрес, получатель вручную',
+  'pay:lost':'Счёт не получить без ручной проверки реквизитов',
+  'pay:loop':'Форма счёта отправляется повторно: ошибки ИНН и КПП',
+  'pay:offline':'Счёт просят выставить по телефону или в магазине',
+  'pay:time':'Длинная форма: реквизиты вводятся вручную'
+};
+const HYP_TYPE = {lost:'Причина отвала неизвестна', loop:'Причина возвратов неизвестна', time:'Шаг дольше цели', offline:'Заканчивают вне онлайна'};
+const CHECK_TYPE = {lost:'', loop:'', time:'', offline:''};
+const TYPE_NAME = {lost:'Отвал', loop:'Петля', time:'Долго', offline:'Уход в офлайн'};
+
+function flags(A, M){
+  const total = A.sessions || 1, out = [];
+  TRANSIENT.forEach(n => {
+    const m = M[n]; if (m.visits < total * 0.01) return;
+    const push = (type, ratio, impact, metric, extra) => {
+      const sev = ratio >= 1.35 ? 'high' : 'mid';
+      const score = type === 'time' ? impact * Math.max(0, (extra && extra.value || 1) - 1) : impact;
+      out.push(Object.assign({node:n, type, sev, ratio, impact, score, metric,
+        hyp: HYP[n + ':' + type] || HYP_TYPE[type], check: CHECK_TYPE[type]}, extra || {}));
+    };
+    if (m.lostR > TH.lost[n] * 1.08) push('lost', m.lostR / TH.lost[n], m.lost / total, 'lost', {value:m.lostR, th:TH.lost[n], count:m.lost});
+    if (m.loopR > TH.loop[n] * 1.08) push('loop', m.loopR / TH.loop[n], m.loops / total, 'loop', {value:m.loopR, th:TH.loop[n], count:m.loops});
+    if (m.offR > TH.offline[n] * 1.08) push('offline', m.offR / TH.offline[n], (m.store + m.tele) / total, 'offline', {value:m.offR, th:TH.offline[n], count:m.store + m.tele, store:m.store, tele:m.tele});
+    if (m.ratio > TH.time * 1.0) push('time', m.ratio / TH.time, m.visits / total, 'time', {value:m.ratio, th:TH.time, count:m.visits});
+  });
+  out.sort((a, b) => (a.sev === b.sev ? b.score - a.score : (a.sev === 'high' ? -1 : 1)));
+  return out;
+}
+
+
+(function(){
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('ru-RU');
+const fmt = v => nf.format(Math.round(v));
+const fmtC = v => v >= 100000 ? nf.format(Math.round(v / 1000)) + ' тыс.' : nf.format(Math.round(v));
+const pct = (x, d) => (x * 100).toFixed(d === undefined ? 1 : d).replace('.', ',') + '%';
+const sec = v => Math.round(v) + ' с';
+const ratioStr = r => '×' + r.toFixed(1).replace('.', ',');
+const ALL = buildCohorts();
+const BASE = aggregate(ALL, 1);
+const BASE_CONV = (() => { const f = funnel(BASE); return f[5].reach / f[0].reach; })();
+
+const DEF = {seg:'pro', sub:'all', size:'all', role:'all', tp:'all', days:30};
+let S = Object.assign({}, DEF), sel = null, hover = null, showAll = false, CUR = null;
+
+const GROUPS = [
+  {key:'seg', label:'Сегмент', opts:[['all','Все'],['b2c','B2C'],['pro','ПРО']]},
+  {key:'sub', label:'Подсегмент', opts:[['all','Все'],['b2b','B2B'],['pro','Профи']], show:() => S.seg === 'pro'},
+  {key:'size', label:'Размер бизнеса', hint:'По численности: микро до 15, малый до 100, средний до 250, крупный свыше 250 человек [Г]', opts:[['all','Все'],['micro','Микро'],['small','Малый'],['mid','Средний'],['large','Крупный']], show:() => S.seg === 'pro' && S.sub === 'b2b'},
+  {key:'role', label:'Роль', opts:[['all','Все'],['buyer','Закупщик'],['exec','Исполнитель'],['acc','Бухгалтерия'],['head','Руководитель']], show:() => S.seg === 'pro' && S.sub === 'b2b'},
+  {key:'tp', label:'Точка контакта', opts:[['all','Все'],['site','Сайт'],['lk','ЛК']]},
+  {key:'days', label:'Период', opts:[[7,'7 дн.'],[30,'30 дн.'],[90,'90 дн.']]}
+];
+
+function setKey(k, v){
+  if (k === 'seg'){ S.seg = v; if (v !== 'pro'){ S.sub = 'all'; S.size = 'all'; S.role = 'all'; } }
+  else if (k === 'sub'){ S.seg = 'pro'; S.sub = v; if (v !== 'b2b'){ S.size = 'all'; S.role = 'all'; } }
+  else if (k === 'size' || k === 'role'){ S.seg = 'pro'; S.sub = 'b2b'; S[k] = v; }
+  else if (k === 'days'){ S.days = +v; }
+  else S[k] = v;
+  sel = null; showAll = false; render();
+}
+
+function renderControls(){
+  const dirty = JSON.stringify(S) !== JSON.stringify(DEF);
+  $('ctl').innerHTML = GROUPS.filter(g => !g.show || g.show()).map(g =>
+    `<div class="grp"><div class="grp__label"${g.hint ? ` title="${g.hint}"` : ''}>${g.label}</div><div class="chips" role="group" aria-label="${g.label}">` +
+    g.opts.map(([v, t]) => `<button type="button" class="chip" data-k="${g.key}" data-v="${v}" aria-pressed="${String(S[g.key]) === String(v)}">${t}</button>`).join('') +
+    `</div></div>`).join('') + (dirty ? `<button type="button" class="reset" id="reset">Сбросить</button>` : '');
+}
+
+
+const flagIcon = c => `<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3v18" stroke="${c}" stroke-width="2.2" stroke-linecap="round" fill="none"/><path d="M5 4h13l-3 4.5L18 13H5z" fill="${c}"/></svg>`;
+const sevColor = s => s === 'high' ? 'var(--c-sev-high)' : 'var(--c-sev-mid)';
+const sevText = s => s === 'high' ? 'Высокая' : 'Средняя';
+
+function renderKpis(){
+  const {A, F, NM, FL} = CUR, tot = A.sessions || 1;
+  const conv = F[5].reach / tot;
+  const d = (conv - BASE_CONV) * 100;
+  const delta = Math.abs(d) < 0.05 ? 'как по всем клиентам' : `${Math.abs(d).toFixed(1).replace('.', ',')} п.п. ${d > 0 ? 'выше' : 'ниже'}, чем по всем клиентам`;
+  const inv = A.flows['pay>done_inv'] || 0, card = A.flows['pay>done_card'] || 0;
+  const sum = e => TRANSIENT.reduce((a, n) => a + (A.flows[n + '>' + e] || 0), 0);
+  const store = sum('store'), tele = sum('tele');
+  const hi = FL.filter(f => f.sev === 'high').length, mid = FL.length - hi;
+  const tp = S.tp === 'all' ? 'сайт и ЛК' : S.tp === 'site' ? 'сайт' : 'ЛК';
+  $('kpis').innerHTML = [
+    ['Сессий на входе', fmt(tot), `за ${S.days} дней · ${tp}`],
+    ['Дошли до заказа или счёта', pct(conv), `${fmt(F[5].reach)} сессий · ${delta}`],
+    ['Получили счёт', fmt(inv), `${pct(inv / tot, 2)} сессий · картой оплатили ${fmt(card)}`],
+    ['Ушли в офлайн', pct((store + tele) / tot), `магазин ${pct(store / tot)} · телемаркетинг ${pct(tele / tot)}`],
+    ['Проблемных зон', String(FL.length), `высокая: ${hi} · средняя: ${mid}`]
+  ].map(([l, v, s]) => `<div class="kpi"><div class="kpi__label">${l}</div><div class="kpi__val num">${v}</div><div class="kpi__sub">${s}</div></div>`).join('');
+}
+
+function renderFunnel(){
+  const {F} = CUR, r0 = F[0].reach || 1;
+  let worst = -1, worstV = 2;
+  for (let i = 1; i < F.length; i++){ const c = F[i].reach / (F[i - 1].reach || 1); if (c < worstV){ worstV = c; worst = i; } }
+  let html = F.map((s, i) => {
+    const share = s.reach / r0;
+    let bar;
+    if (i === 5){
+      const wi = (s.stopped.done_inv / r0) * 100, wc = (s.stopped.done_card / r0) * 100;
+      bar = `<i style="width:${wi}%;min-width:${wi > 0 ? 3 : 0}px;background:var(--c-inv)"></i><i style="width:${wc}%;min-width:${wc > 0 ? 3 : 0}px;background:var(--c-ok)"></i>`;
+    } else bar = `<i style="width:${share * 100}%;min-width:3px;background:var(--c-inv)"></i>`;
+    let meta = i ? `<b>${pct(s.reach / (F[i - 1].reach || 1))}</b> от предыдущего шага` : '';
+    if (i === 5) meta += ` · счёт ${fmt(s.stopped.done_inv)}, картой ${fmt(s.stopped.done_card)}`;
+    const bn = i === worst ? `<span class="badge">${flagIcon('var(--c-sev-high)')}Узкое место</span>` : '';
+    return `<div class="fstep"><div class="fstep__top"><span class="fstep__name">${s.name} ${bn}</span><span class="fstep__val">${fmt(s.reach)} · ${pct(share)}</span></div>
+      <div class="bar" role="img" aria-label="${s.name}: ${pct(share)} входа">${bar}</div>${meta ? `<div class="fstep__meta">${meta}</div>` : ''}</div>`;
+  }).join('');
+  html += `<div class="fstep fstep--nodata"><div class="fstep__top"><span class="fstep__name">Оплатили счёт</span><span class="fstep__val muted">нет данных на сайте</span></div></div>`;
+  $('funnel').innerHTML = html;
+}
+
+function flagMetric(f){
+  const m = CUR.NM[f.node];
+  if (f.type === 'lost') return `<b>${pct(f.value, 0)}</b> уходят без заказа · порог ${pct(f.th, 0)}`;
+  if (f.type === 'loop') return `<b>${pct(f.value, 0)}</b> повторяют шаг или возвращаются · порог ${pct(f.th, 0)}`;
+  if (f.type === 'time') return `<b>${sec(m.time)}</b> на шаге · цель ${sec(m.target)}`;
+  return `<b>${pct(f.value, 0)}</b> уходят в магазин или телемаркетинг · порог ${pct(f.th, 0)}`;
+}
+
+function renderFlags(){
+  const {FL} = CUR, N = 4, list = showAll ? FL : FL.slice(0, N);
+  $('flags').innerHTML = list.length ? list.map(f => `<li><div class="flag" role="button" tabindex="0" data-node="${f.node}" aria-pressed="${sel === f.node}">
+      <div class="flag__top"><span class="sev">${flagIcon(sevColor(f.sev))}${sevText(f.sev)}</span><span class="typechip">${TYPE_NAME[f.type]}</span><span class="flag__node">${NODE_NAME[f.node]}</span></div>
+      <div class="flag__metric">${flagMetric(f)}</div>
+      <div class="flag__hyp">${f.hyp}</div></div></li>`).join('')
+    : `<li class="empty">В этом срезе ни один шаг не превышает пороги.</li>`;
+  const more = $('more');
+  if (FL.length > N){ more.hidden = false; more.textContent = showAll ? 'Свернуть' : `Показать все (${FL.length})`; } else more.hidden = true;
+}
+
+/* ---------- Карта процесса ---------- */
+const NW = 132, NH = 54;
+const POS = {
+  home:{x:80,y:300}, search:{x:255,y:300}, pdp:{x:430,y:300}, cart:{x:605,y:300}, checkout:{x:780,y:300}, pay:{x:955,y:300},
+  login:{x:80,y:170}, reorder:{x:255,y:170},
+  done_inv:{x:1130,y:235}, done_card:{x:1130,y:365},
+  lost:{x:330,y:545,w:172}, store:{x:655,y:545,w:172}, tele:{x:980,y:545,w:172}
+};
+Object.values(POS).forEach(p => { p.w = p.w || NW; p.h = NH; });
+const MAIN = ['home','search','pdp','cart','checkout','pay'];
+const bz = (p, t) => { const u = 1 - t; return [u*u*u*p[0] + 3*u*u*t*p[2] + 3*u*t*t*p[4] + t*t*t*p[6], u*u*u*p[1] + 3*u*u*t*p[3] + 3*u*t*t*p[5] + t*t*t*p[7]]; };
+const cubic = (p, dx, dy) => { const m = bz(p, .5); return {d:`M${p[0]},${p[1]} C${p[2]},${p[3]} ${p[4]},${p[5]} ${p[6]},${p[7]}`, lx:m[0] + (dx || 0), ly:m[1] + (dy || 0)}; };
+const line = (x0, y0, x1, y1, dx, dy) => ({d:`M${x0},${y0} L${x1},${y1}`, lx:(x0 + x1) / 2 + (dx || 0), ly:(y0 + y1) / 2 + (dy || 0)});
+
+function geom(a, b){
+  const A = POS[a], B = POS[b], top = A.y - NH / 2;
+  if (a === b) return cubic([A.x - 18, top, A.x - 44, top - 42, A.x + 44, top - 42, A.x + 18, top], 0, -6);
+  if (EXITS.includes(b)){
+    const sx = A.x + (EXITS.indexOf(b) - 1) * 24, sy = A.y + NH / 2, tx = B.x + (TRANSIENT.indexOf(a) - 3.5) * 15, ty = B.y - NH / 2, h = (ty - sy) / 2;
+    return cubic([sx, sy, sx, sy + h, tx, ty - h, tx, ty], 0, 0);
+  }
+  const ia = MAIN.indexOf(a), ib = MAIN.indexOf(b);
+  if (ia >= 0 && ib >= 0){
+    const diff = ib - ia;
+    if (Math.abs(diff) === 1){
+      if (diff > 0) return line(A.x + NW / 2, A.y - 9, B.x - NW / 2, A.y - 9, 0, -9);
+      return line(A.x - NW / 2, A.y + 9, B.x + NW / 2, A.y + 9, 0, 20);
+    }
+    const dir = Math.sign(diff), h = 58, sx = A.x + dir * 24, ex = B.x - dir * 24;
+    return cubic([sx, top, sx, top - h * 1.33, ex, top - h * 1.33, ex, top], 0, -6);
+  }
+  const key = a + '>' + b;
+  switch (key){
+    case 'login>home': return line(64, 197, 64, 273, -22, 0);
+    case 'home>login': return line(96, 273, 96, 197, 22, 0);
+    case 'login>reorder': return line(146, 170, 189, 170, 0, -10);
+    case 'login>search': return line(126, 197, 215, 273, 18, 0);
+    case 'reorder>search': return line(269, 197, 269, 273, 22, 0);
+    case 'reorder>cart': return cubic([321, 170, 470, 170, 605, 205, 605, 273], 0, -8);
+    case 'login>pay': return cubic([80, 143, 80, 40, 955, 40, 955, 273], 0, -6);
+    case 'checkout>login': return cubic([768, 273, 768, 112, 320, 80, 146, 150], 0, -6);
+    case 'pay>login': return cubic([943, 273, 943, 100, 330, 56, 146, 150], 0, -6);
+    case 'pay>done_inv': return line(1021, 292, 1064, 242, 4, -14);
+    case 'pay>done_card': return line(1021, 308, 1064, 358, 4, 20);
+  }
+  return line(A.x, A.y, B.x, B.y);
+}
+
+function renderGraph(){
+  const {A, NM, FL} = CUR, tot = A.sessions || 1;
+  const flagByNode = {};
+  FL.forEach(f => { const c = flagByNode[f.node]; if (!c || (c === 'mid' && f.sev === 'high')) flagByNode[f.node] = f.sev; });
+  const SKIP = new Set(['home>login','login>home','login>pay','home>pdp','reorder>search']);
+  const loopNodes = new Set(FL.filter(f => f.type === 'loop').map(f => f.node));
+  const offNodes = new Set(FL.filter(f => f.type === 'offline').map(f => f.node));
+  const lostNodes = new Set(FL.filter(f => f.type === 'lost').map(f => f.node));
+  const all = Object.keys(A.flows), show = new Set();
+  all.forEach(k => { const b = k.split('>')[1]; if (!EXITS.includes(b) && !LOOP_EDGES.has(k) && !SKIP.has(k) && A.flows[k] >= tot * (DONE.includes(b) ? 0.005 : 0.03)) show.add(k); });
+  loopNodes.forEach(n => all.filter(k => k.startsWith(n + '>') && LOOP_EDGES.has(k) && A.flows[k] >= tot * 0.015).sort((x, y) => A.flows[y] - A.flows[x]).slice(0, 2).forEach(k => show.add(k)));
+  EXITS.forEach(e => {
+    all.filter(k => k.endsWith('>' + e)).sort((x, y) => A.flows[y] - A.flows[x]).slice(0, 2).forEach(k => show.add(k));
+    all.filter(k => k.endsWith('>' + e) && A.flows[k] >= tot * 0.01 && (e === 'lost' ? lostNodes : offNodes).has(k.split('>')[0])).forEach(k => show.add(k));
+  });
+  const keys = [...show];
+  const maxF = Math.max.apply(null, keys.map(k => A.flows[k]));
+  let edges = '', labels = '';
+  keys.forEach(k => {
+    const [a, b] = k.split('>'), f = A.flows[k], g = geom(a, b);
+    const cat = EXITS.includes(b) ? 'exit' : LOOP_EDGES.has(k) ? 'loop' : 'fwd';
+    const cls = cat === 'exit' ? (b === 'lost' ? 'e-lost' : 'e-store') : cat === 'loop' ? 'e-loop' : 'e-fwd';
+    const mk = cat === 'exit' ? (b === 'lost' ? 'lost' : 'off') : cat;
+    const w = (cat === 'exit' ? 1.4 + 4 : 1.6 + 6.4) * Math.sqrt(f / maxF);
+    const op = cat === 'exit' ? .65 : .95;
+    edges += `<path class="e ${cls}" data-a="${a}" data-b="${b}" data-cat="${cat}" data-op="${op}" d="${g.d}" style="stroke-width:${Math.max(1.6, w).toFixed(1)}px" marker-end="url(#mk-${mk})"/>`;
+    const share = f / (A.visits[a] || 1);
+    if (share >= (cat === 'exit' ? .15 : .08)) labels += `<text class="glabel elab" data-a="${a}" data-b="${b}" data-cat="${cat}" x="${g.lx.toFixed(0)}" y="${g.ly.toFixed(0)}" text-anchor="middle">${pct(share, 0)}</text>`;
+  });
+  let nodes = '';
+  NODE_IDS.forEach(n => {
+    const P = POS[n], x = P.x - P.w / 2, y = P.y - P.h / 2, isExit = EXITS.includes(n), isDone = DONE.includes(n);
+    let l2;
+    if (isExit || isDone){ const inflow = TRANSIENT.reduce((s, s2) => s + (A.flows[s2 + '>' + n] || 0), 0); l2 = `${fmtC(inflow)} · ${pct(inflow / tot)}`; }
+    else l2 = `${fmtC(NM[n].visits)} · ${sec(NM[n].time)}`;
+    const fs = flagByNode[n];
+    const badge = fs ? `<circle cx="${x + P.w - 4}" cy="${y + 4}" r="11" fill="${sevColor(fs)}"/><text class="nbadge-t" x="${x + P.w - 4}" y="${y + 9}" fill="${fs === 'high' ? '#fff' : 'var(--lm-graphite)'}">!</text>` : '';
+    const stroke = fs ? `style="stroke:${sevColor(fs)};stroke-width:2.5px"` : '';
+    nodes += `<g class="node" data-n="${n}" tabindex="0" role="button" aria-label="${NODE_NAME[n]}">
+      <rect class="nbox ${isExit ? 'exit' : isDone ? 'done' : ''}" x="${x}" y="${y}" width="${P.w}" height="${P.h}" rx="8" ${stroke}/>
+      <text class="nt1" x="${P.x}" y="${P.y - 4}" text-anchor="middle">${NODE_NAME[n]}</text>
+      <text class="nt2" x="${P.x}" y="${P.y + 14}" text-anchor="middle">${l2}</text>${badge}</g>`;
+  });
+  const mk = (id, c) => `<marker id="mk-${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="mk-${c}"/></marker>`;
+  $('graph').querySelector('svg')?.remove();
+  $('graph').insertAdjacentHTML('afterbegin', `<svg viewBox="0 70 1220 550" role="group" aria-label="Карта процесса">
+    <defs>${mk('fwd', 'fwd')}${mk('loop', 'loop')}${mk('lost', 'lost')}${mk('off', 'off')}</defs>
+    <rect class="gband" x="8" y="124" width="440" height="92" rx="8"/><text class="gcap" x="18" y="138">ЛИЧНЫЙ КАБИНЕТ</text>
+    <rect class="gband" x="8" y="490" width="1204" height="112" rx="8"/><text class="gcap" x="18" y="482">ВЫХОДЫ ИЗ ОНЛАЙНА</text>
+    <text class="gcap" x="1130" y="186" text-anchor="middle">РЕЗУЛЬТАТ</text>
+    ${edges}${nodes}${labels}</svg>`);
+  applyHighlight();
+}
+
+function applyHighlight(){
+  const svg = $('graph').querySelector('svg'); if (!svg) return;
+  const fn = hover || sel;
+  svg.querySelectorAll('.e,.elab').forEach(el => {
+    const inc = !fn || el.dataset.a === fn || el.dataset.b === fn;
+    const base = el.classList.contains('e') ? +el.dataset.op : 1;
+    el.style.opacity = inc ? base : .1;
+  });
+  svg.querySelectorAll('.node').forEach(g => {
+    const r = g.querySelector('rect');
+    if (g.dataset.n === sel){ r.style.strokeWidth = '4px'; r.style.stroke = 'var(--lm-graphite)'; }
+    else { const fl = CUR.FL.filter(f => f.node === g.dataset.n); if (!fl.length){ r.style.strokeWidth = ''; r.style.stroke = ''; } else { r.style.strokeWidth = '2.5px'; r.style.stroke = sevColor(fl.some(f => f.sev === 'high') ? 'high' : 'mid'); } }
+  });
+}
+
+function nodeTip(n){
+  const {A, NM} = CUR, tot = A.sessions || 1;
+  let h = `<b>${NODE_NAME[n]}</b>`;
+  if (NODE_HINT[n]) h += `<div>${NODE_HINT[n]}</div>`;
+  if (TRANSIENT.includes(n)){
+    const m = NM[n];
+    h += `<div>Визитов: ${fmt(m.visits)} (${pct(m.visits / tot)} от сессий, с повторами)</div><div>Типичное время: ${sec(m.time)}, цель ${sec(m.target)}</div>`;
+    const out = Object.keys(A.flows).filter(k => k.startsWith(n + '>')).map(k => [k.split('>')[1], A.flows[k]]).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    h += `<div style="margin-top:6px">Куда дальше:</div>` + out.map(([t, f]) => `<div>${NODE_NAME[t]} ${pct(f / m.visits)}</div>`).join('');
+    const fl = CUR.FL.filter(f => f.node === n);
+    if (fl.length) h += `<div style="margin-top:6px">Барьеры: ${fl.map(f => TYPE_NAME[f.type].toLowerCase()).join(', ')}</div>`;
+  } else {
+    const inb = Object.keys(A.flows).filter(k => k.endsWith('>' + n)).map(k => [k.split('>')[0], A.flows[k]]).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const sum = inb.reduce((s, x) => s + x[1], 0);
+    h += `<div>Всего: ${fmt(sum)} (${pct(sum / tot)} сессий)</div><div style="margin-top:6px">Откуда пришли:</div>` + inb.map(([t, f]) => `<div>${NODE_NAME[t]}: ${fmt(f)}</div>`).join('');
+  }
+  return h;
+}
+function showTip(n, ev, el){
+  const tip = $('tip'), box = $('graph'); tip.innerHTML = nodeTip(n); tip.hidden = false;
+  const r = box.getBoundingClientRect();
+  let cx, cy;
+  if (ev && ev.clientX !== undefined && ev.type !== 'focus'){ cx = ev.clientX; cy = ev.clientY; }
+  else { const b = el.getBoundingClientRect(); cx = b.right; cy = b.top; }
+  let x = cx - r.left + box.scrollLeft + 14, y = cy - r.top + 14;
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  const maxX = box.scrollLeft + box.clientWidth - tw - 8;
+  if (x > maxX) x = Math.max(box.scrollLeft + 8, cx - r.left + box.scrollLeft - tw - 14);
+  if (y + th > box.clientHeight - 4) y = Math.max(4, box.clientHeight - th - 4);
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function hideTip(){ $('tip').hidden = true; }
+
+function renderLegend(){
+  $('legend').innerHTML = [
+    ['e-fwd', 'Основной путь'], ['e-loop', 'Застревают: повтор или возврат'], ['e-store', 'Ушли в магазин или телемаркетинг'], ['e-lost', 'Ушли без заказа']
+  ].map(([c, t]) => `<span><svg viewBox="0 0 40 10" aria-hidden="true"><line class="e ${c}" x1="1" y1="5" x2="39" y2="5" style="stroke-width:2.5px"/></svg>${t}</span>`).join('');
+}
+
+function renderTimes(){
+  const {NM} = CUR, ids = TRANSIENT.filter(n => NM[n].visits > 0);
+  const mx = Math.max.apply(null, ids.map(n => Math.max(NM[n].time, NM[n].target))) * 1.1;
+  $('times').innerHTML = ids.map(n => {
+    const m = NM[n], over = m.ratio > TH.time;
+    const st = over ? `<span class="badge">${flagIcon('var(--c-sev-high)')}Выше цели ${ratioStr(m.ratio)}</span>` : '<span class="muted">В норме</span>';
+    return `<div class="trow"><div class="trow__name">${NODE_NAME[n]}</div>
+      <div class="track" role="img" aria-label="${NODE_NAME[n]}: ${sec(m.time)}, цель ${sec(m.target)}"><i style="width:${m.time / mx * 100}%;background:${over ? 'var(--c-sev-high)' : 'var(--c-inv)'}"></i><u style="left:${m.target / mx * 100}%"></u></div>
+      <div class="trow__val"><b>${sec(m.time)}</b> · цель ${sec(m.target)}<br>${st}</div></div>`;
+  }).join('');
+}
+
+function renderTable(){
+  const {NM, FL} = CUR, key = {}; FL.forEach(f => { key[f.node + ':' + f.type] = f.sev; });
+  const cell = (n, type, txt) => { const s = key[n + ':' + type]; return `<td class="${s ? 'hit' + (s === 'high' ? ' hi' : '') : ''}">${txt}</td>`; };
+  const ids = TRANSIENT.filter(n => NM[n].visits > 0);
+  $('tbl').innerHTML = `<thead><tr><th>Шаг</th><th>Визиты</th><th>Время (цель)</th><th>Отвал</th><th>Петли и возвраты</th><th>В магазин</th><th>В телемаркетинг</th><th>Барьеры</th></tr></thead><tbody>` +
+    ids.map(n => { const m = NM[n], v = m.visits || 1, fl = FL.filter(f => f.node === n).map(f => TYPE_NAME[f.type].toLowerCase());
+      return `<tr data-node="${n}" class="${sel === n ? 'is-sel' : ''}"><td>${NODE_NAME[n]}</td><td>${fmt(m.visits)}</td>${cell(n, 'time', sec(m.time) + ' (' + m.target + ')')}${cell(n, 'lost', pct(m.lostR))}${cell(n, 'loop', pct(m.loopR))}${cell(n, 'offline', pct(m.store / v))}${cell(n, 'offline', pct(m.tele / v))}<td style="text-align:left">${fl.length ? fl.join(', ') : '—'}</td></tr>`; }).join('') + '</tbody>';
+}
+
+function updateSel(){
+  document.querySelectorAll('.flag').forEach(el => el.setAttribute('aria-pressed', String(el.dataset.node === sel)));
+  document.querySelectorAll('#tbl tbody tr').forEach(tr => tr.classList.toggle('is-sel', tr.dataset.node === sel));
+  applyHighlight();
+}
+
+function render(){
+  const list = selectCohorts(ALL, S), A = aggregate(list, S.days / 30);
+  const NM = nodeMetrics(A);
+  CUR = {A, F:funnel(A), NM, FL:flags(A, NM)};
+  renderControls();
+  renderKpis(); renderFunnel(); renderFlags(); renderLegend(); renderGraph(); renderTimes(); renderTable();
+}
+
+/* ---------- События ---------- */
+$('ctl').addEventListener('click', e => { if (e.target.id === 'reset'){ S = Object.assign({}, DEF); sel = null; showAll = false; render(); return; } const b = e.target.closest('.chip'); if (b) setKey(b.dataset.k, b.dataset.v); });
+$('more').addEventListener('click', () => { showAll = !showAll; renderFlags(); updateSel(); });
+function selectNode(n, scroll){
+  sel = sel === n ? null : n; updateSel();
+  if (sel && scroll){ const g = $('graph').getBoundingClientRect(); if (g.top > window.innerHeight - 80 || g.bottom < 80) $('graph').scrollIntoView({block:'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'}); }
+}
+$('flags').addEventListener('click', e => { const f = e.target.closest('.flag'); if (f) selectNode(f.dataset.node, true); });
+$('flags').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('flag')){ e.preventDefault(); selectNode(e.target.dataset.node, true); } });
+const gr = $('graph');
+gr.addEventListener('mouseover', e => { const n = e.target.closest('.node'); if (n){ hover = n.dataset.n; applyHighlight(); showTip(hover, e, n); } });
+gr.addEventListener('mousemove', e => { const n = e.target.closest('.node'); if (n) showTip(n.dataset.n, e, n); });
+gr.addEventListener('mouseout', e => { const n = e.target.closest('.node'); if (n && !(e.relatedTarget && n.contains(e.relatedTarget))){ hover = null; hideTip(); applyHighlight(); } });
+gr.addEventListener('click', e => { const n = e.target.closest('.node'); if (n) selectNode(n.dataset.n, false); else if (sel){ sel = null; updateSel(); } });
+gr.addEventListener('focusin', e => { const n = e.target.closest('.node'); if (n){ hover = n.dataset.n; applyHighlight(); showTip(hover, {type:'focus'}, n); } });
+gr.addEventListener('focusout', () => { hover = null; hideTip(); applyHighlight(); });
+gr.addEventListener('keydown', e => { const n = e.target.closest('.node'); if (n && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); selectNode(n.dataset.n, false); } });
+render();
+})();
+
+</script>
+</body>
+</html>
