@@ -143,9 +143,10 @@ body {
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
+/* Ховер: тонкая жёлтая линия по контуру плитки (1px граница + 1px кольцо = 2px, без сдвига макета) */
 .tile:hover {
-  border-color: var(--lm-graphite);
-  box-shadow: var(--lm-shadow-hover);
+  border-color: var(--lm-yellow);
+  box-shadow: 0 0 0 1px var(--lm-yellow), var(--lm-shadow-hover);
 }
 
 .tile:focus-visible {
@@ -237,7 +238,7 @@ body {
   <div class="grid">
 
     <!-- Process Mining -->
-    <a class="tile" href="./Process Mining/">
+    <a class="tile" href="./process-mining/">
       <div class="tile-icon">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M6 8l5 8M18 8l-5 8"/></svg>
       </div>
