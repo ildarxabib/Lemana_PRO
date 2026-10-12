@@ -70,15 +70,10 @@ body {
   margin-bottom: var(--lm-s-5);
 }
 
-.logo-slot {
-  display: inline-flex;
-  align-items: center;
-  height: 54px;
-  padding: 0 var(--lm-s-4);
-  border: 1px dashed var(--lm-border-outline);
-  border-radius: var(--lm-r-sm);
-  font-size: 14px;
-  color: var(--lm-text-secondary);
+.logo {
+  display: block;
+  height: 56px;
+  width: auto;
 }
 
 /* ——— Hero-баннер ——— */
@@ -93,11 +88,11 @@ body {
   font-family: var(--lm-font-title);
   text-transform: uppercase;
   font-weight: 700;
-  font-size: 46px;
+  font-size: clamp(16px, 4.6vw, 46px);
   line-height: 1;
   letter-spacing: 0;
   margin: 0 0 var(--lm-s-4);
-  max-width: 760px;
+  white-space: nowrap;
   color: var(--lm-graphite);
 }
 
@@ -130,7 +125,7 @@ body {
   .grid { grid-template-columns: 1fr; }
   .page { padding: var(--lm-s-4) var(--lm-s-4) var(--lm-s-7); }
   .hero { padding: var(--lm-s-6) var(--lm-s-5) var(--lm-s-5); margin-bottom: var(--lm-s-6); }
-  .hero h1 { font-size: 32px; }
+  .logo { height: 44px; }
 }
 
 /* ——— Плитка (карточка) ——— */
@@ -229,7 +224,7 @@ body {
 <div class="page">
 
   <div class="topbar">
-    <span class="logo-slot">логотип — подставить</span>
+    <img class="logo" src="logo.png" alt="Лемана ПРО">
   </div>
 
   <header class="hero">
