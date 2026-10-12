@@ -333,7 +333,7 @@ code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font
         <li>Сессию на сайте с организацией и ролью клиента (org_id), в том числе до входа в ЛК.</li>
         <li>Выход в телемаркетинг со звонком менеджера: по номеру телефона или org_id в течение суток.</li>
         <li>Выход в магазин с чеком или заказом в PRO-зоне: по org_id или карте PRO.</li>
-        <li>Оплату счёта из учётной системы. Сайт её не видит, поэтому в воронке нет шага «оплатили счёт».</li>
+        <li>Выставление и оплату счёта, а также факт доставки из учётной системы и логистики. Сайт их не видит сам, поэтому события нужно связать по номеру заказа.</li>
       </ul>
     </div>
   </details>
@@ -343,21 +343,22 @@ code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font
 
 <script>
 /* ===== Модель клиентских путей (синтетическая). Марковская цепь с учётом максимального достигнутого этапа. ===== */
-const NODE_IDS = ['home','login','search','pdp','reorder','cart','checkout','pay','done_inv','done_card','lost','store','tele'];
-const TRANSIENT = ['home','login','search','pdp','reorder','cart','checkout','pay'];
-const EXITS = ['lost','store','tele'];
-const DONE = ['done_inv','done_card'];
-const RANK = {home:0,login:0,search:1,pdp:1,reorder:1,cart:2,checkout:3,pay:4,done_inv:5,done_card:5};
+const NODE_IDS = ['home','login','search','pdp','reorder','cart','checkout','pay','inv','paid','delivered','lost','store','tele','unpaid','undel'];
+const TRANSIENT = ['home','login','search','pdp','reorder','cart','checkout','pay','inv','paid'];
+const EXITS = ['lost','store','tele','unpaid','undel'];
+const DONE = ['delivered'];
+const RANK = {home:0,login:0,search:1,pdp:1,reorder:1,cart:2,checkout:3,pay:4,inv:5,paid:6,delivered:7};
+const LOST_KEY = {inv:'unpaid', paid:'undel'};
 
 const NODE_NAME = {
   home:'Главная', login:'Вход в ЛК', search:'Каталог, поиск', pdp:'Карточка товара', reorder:'Повторный заказ',
-  cart:'Корзина', checkout:'Оформление', pay:'Оплата / счёт', done_inv:'Счёт выставлен', done_card:'Оплачено картой',
-  lost:'Ушли без заказа', store:'Ушли в магазин', tele:'Ушли в телемаркетинг'
+  cart:'Корзина', checkout:'Оформление', pay:'Оплата / счёт', inv:'Счёт выставлен', paid:'Оплачено', delivered:'Доставлено',
+  lost:'Ушли без заказа', store:'Ушли в магазин', tele:'Ушли в телемаркетинг', unpaid:'Не оплатили', undel:'Не доставлено'
 };
 const NODE_HINT = {
   home:'Главная страница сайта', login:'Вход в личный кабинет', search:'Каталог, поиск, фильтры', pdp:'Страница товара',
   reorder:'Повтор прошлого заказа в ЛК', cart:'Корзина, правка количества', checkout:'Шаг после нажатия «Купить»',
-  pay:'Выбор оплаты, форма запроса счёта'
+  pay:'Выбор оплаты, форма запроса счёта', inv:'Счёт выставлен клиенту (ПРО)', paid:'Заказ оплачен: счёт или карта (B2C)', delivered:'Заказ доставлен клиенту'
 };
 
 /* Базовые веса переходов (относительные, нормируются). */
@@ -369,41 +370,44 @@ const BASE_W = {
   reorder: {cart:48, search:10, reorder:5, lost:22, store:3, tele:7},
   cart:    {checkout:36, search:15, pdp:6, cart:6, lost:21, store:7, tele:9},
   checkout:{pay:55, cart:9, checkout:6, login:12, lost:13, store:3, tele:6},
-  pay:     {done:56, pay:11, login:4, checkout:4, cart:2, lost:13, store:3, tele:8}
+  pay:     {done:56, pay:11, login:4, checkout:4, cart:2, lost:13, store:3, tele:8},
+  inv:     {paid:55, unpaid:14, store:6, tele:7},
+  paid:    {delivered:90, undel:10}
 };
 /* Переходы, которые считаем петлями и возвратами. */
 const LOOP_EDGES = new Set(['login>login','search>search','pdp>pdp','reorder>reorder','cart>cart','checkout>checkout','pay>pay',
   'cart>search','cart>pdp','checkout>cart','pay>checkout','pay>cart','checkout>login','pay>login','search>home']);
 
 /* Типичное время на шаге (медиана, с) и цель [Г]. */
-const BASE_TIME = {home:18, login:22, search:41, pdp:52, reorder:34, cart:63, checkout:96, pay:null};
-const TARGET_TIME = {home:20, login:25, search:45, pdp:55, reorder:35, cart:60, checkout:90, pay:120};
+const BASE_TIME = {home:18, login:22, search:41, pdp:52, reorder:34, cart:63, checkout:96, pay:null, inv:0, paid:0};
+const TARGET_TIME = {home:20, login:25, search:45, pdp:55, reorder:35, cart:60, checkout:90, pay:120, inv:1800, paid:86400};
+const TARGET_DLV = 172800; /* доставка: цель 2 дня [Г] */
 /* Пороги флагов [Г]. */
 const TH = {
-  lost:   {home:.45, login:.26, search:.24, pdp:.30, reorder:.22, cart:.22, checkout:.14, pay:.115},
+  lost:   {home:.45, login:.26, search:.24, pdp:.30, reorder:.22, cart:.22, checkout:.14, pay:.2, inv:.2, paid:.07},
   loop:   {login:.08, search:.11, pdp:.12, reorder:.08, cart:.28, checkout:.24, pay:.22, home:.99},
-  offline:{home:.08, login:.10, search:.12, pdp:.17, reorder:.12, cart:.17, checkout:.12, pay:.17},
+  offline:{home:.08, login:.10, search:.12, pdp:.17, reorder:.12, cart:.17, checkout:.12, pay:.17, inv:.2},
   time: 1.3
 };
 
 const SEG = {
-  b2c:{label:'B2C', inv:.03, lost:1.15, store:1.35, tele:.5, loop:.9, time:.9, edge:{'login>reorder':.25,'checkout>login':.5,'pay>login':.4}},
-  pro:{label:'Профи', inv:.28, lost:1, store:1.6, tele:.9, loop:1, time:.95, edge:{'login>reorder':.9,'pdp>cart':1.15}},
-  b2b:{label:'B2B', inv:.82, lost:.95, store:.9, tele:1.35, loop:1.1, time:1.15, edge:{'login>reorder':1.3,'cart>checkout':.9}}
+  b2c:{label:'B2C', inv:0, issue:0, payWait:0, dlv:2, undel:.6, lost:1.15, store:1.35, tele:.5, loop:.9, time:.9, edge:{'login>reorder':.25,'checkout>login':.5,'pay>login':.4,'pay>lost':.55}},
+  pro:{label:'Профи', inv:1, issue:90, payWait:20, dlv:2.2, undel:.8, lost:1, store:1.6, tele:.9, loop:1, time:.95, edge:{'login>reorder':.9,'pdp>cart':1.15}},
+  b2b:{label:'B2B', inv:1, issue:240, payWait:30, dlv:3, undel:1, lost:.95, store:.9, tele:1.35, loop:1.1, time:1.15, edge:{'login>reorder':1.3,'cart>checkout':.9}}
 };
 const SIZES = ['micro','small','mid','large'];
 const SIZE = {
-  micro:{label:'Микро', loop:1, tele:.8, store:1.35, lost:1.1, time:.8, edge:{'cart>checkout':1.1,'pay>pay':.8}},
-  small:{label:'Малый', loop:1.1, tele:1, store:1.1, lost:1, time:1, edge:{'pay>pay':1}},
-  mid:  {label:'Средний', loop:1.25, tele:1.4, store:.85, lost:.95, time:1.25, edge:{'cart>checkout':.85,'pay>pay':1.3}},
-  large:{label:'Крупный', loop:1.5, tele:1.9, store:.55, lost:.9, time:1.6, edge:{'cart>checkout':.7,'pay>pay':1.7,'cart>search':1.2}}
+  micro:{label:'Микро', loop:1, tele:.8, store:1.35, lost:1.1, time:.8, issue:.8, payWait:.7, dlv:.9, undel:.8, edge:{'cart>checkout':1.1,'pay>pay':.8}},
+  small:{label:'Малый', loop:1.1, tele:1, store:1.1, lost:1, time:1, issue:1, payWait:1, dlv:1, undel:1, edge:{'pay>pay':1}},
+  mid:  {label:'Средний', loop:1.25, tele:1.4, store:.85, lost:.95, time:1.25, issue:1.3, payWait:1.2, dlv:1.15, undel:1.2, edge:{'cart>checkout':.85,'pay>pay':1.3}},
+  large:{label:'Крупный', loop:1.5, tele:1.9, store:.55, lost:.9, time:1.6, issue:1.8, payWait:1.6, dlv:1.3, undel:1.6, edge:{'cart>checkout':.7,'pay>pay':1.7,'cart>search':1.2}}
 };
 const ROLES = ['buyer','exec','acc','head'];
 const ROLE = {
   buyer:{label:'Закупщик', edge:{}},
-  exec: {label:'Исполнитель', store:1.8, lost:1.15, time:.85, invMul:.5, edge:{'pdp>cart':.75,'cart>checkout':.55,'search>search':1.3}},
-  acc:  {label:'Бухгалтерия', tele:1.2, loop:1.1, time:1.1, invSet:.95, edge:{'home>search':.45,'login>search':.4,'login>reorder':.6,'login>pay':4,'checkout>pay':1.1,'pay>pay':1.3}},
-  head: {label:'Руководитель', lost:1.3, tele:1.3, time:.75, edge:{'pdp>cart':.6,'cart>checkout':.7}}
+  exec: {label:'Исполнитель', store:1.8, lost:1.15, time:.85, edge:{'pdp>cart':.75,'cart>checkout':.55,'search>search':1.3}},
+  acc:  {label:'Бухгалтерия', tele:1.2, loop:1.1, time:1.1, issue:.7, payWait:.6, edge:{'home>search':.45,'login>search':.4,'login>reorder':.6,'login>pay':4,'checkout>pay':1.1,'pay>pay':1.3}},
+  head: {label:'Руководитель', lost:1.3, tele:1.3, time:.75, issue:1.2, edge:{'pdp>cart':.6,'cart>checkout':.7}}
 };
 
 /* Объём сессий за 30 дней (синтетика). */
@@ -421,12 +425,9 @@ const START = {
 
 function mods(c){
   const s = SEG[c.seg], z = c.size ? SIZE[c.size] : null, r = c.role ? ROLE[c.role] : null;
-  let inv = s.inv;
-  if (r && r.invMul) inv *= r.invMul;
-  if (r && r.invSet) inv = r.invSet;
-  const m = {inv, lost:s.lost, store:s.store, tele:s.tele, loop:s.loop, time:s.time, edge:Object.assign({}, s.edge)};
+  const m = {inv:s.inv, lost:s.lost, store:s.store, tele:s.tele, loop:s.loop, time:s.time, issue:s.issue, payWait:s.payWait, dlv:s.dlv, undel:s.undel, edge:Object.assign({}, s.edge)};
   [z, r].forEach(o => { if (!o) return;
-    ['lost','store','tele','loop','time'].forEach(k => { if (o[k]) m[k] *= o[k]; });
+    ['lost','store','tele','loop','time','issue','payWait','dlv','undel'].forEach(k => { if (o[k]) m[k] *= o[k]; });
     Object.entries(o.edge || {}).forEach(([k,v]) => { m.edge[k] = (m.edge[k] || 1) * v; });
   });
   if (c.tp === 'lk') {
@@ -434,7 +435,10 @@ function mods(c){
     m.edge['pay>login'] = (m.edge['pay>login'] || 1) * .08;
     m.edge['login>login'] = (m.edge['login>login'] || 1) * .5;
   }
-  m.edge['pay>pay'] = (m.edge['pay>pay'] || 1) * (0.25 + 0.9 * inv) / 0.7;
+  m.edge['pay>pay'] = (m.edge['pay>pay'] || 1) * (0.25 + 0.9 * m.inv) / 0.7;
+  const hours = m.issue / 60;
+  m.edge['pay>lost'] = (m.edge['pay>lost'] || 1) * Math.min(3.2, 1 + 0.3 * hours);
+  m.unpaidMul = Math.min(3.4, 1 + 0.18 * hours);
   return m;
 }
 
@@ -443,8 +447,10 @@ function buildP(c){
   TRANSIENT.forEach(n => {
     const w = {};
     Object.entries(BASE_W[n]).forEach(([t, v]) => {
-      if (t === 'done') { w.done_inv = v * m.inv; w.done_card = v * (1 - m.inv); return; }
+      if (t === 'done') { if (m.inv > 0) w.inv = v * m.inv; if (m.inv < 1) w.paid = v * (1 - m.inv); return; }
       let x = v; const key = n + '>' + t;
+      if (t === 'unpaid') x *= m.unpaidMul * m.lost;
+      if (t === 'undel') x *= m.undel;
       if (t === 'lost') x *= m.lost; else if (t === 'store') x *= m.store; else if (t === 'tele') x *= m.tele;
       if (LOOP_EDGES.has(key)) x *= m.loop;
       if (m.edge[key]) x *= m.edge[key];
@@ -482,7 +488,8 @@ function simulate(c){
     const base = n === 'pay' ? 95 + m.inv * 85 : BASE_TIME[n];
     time[n] = base * m.time;
   });
-  return {visits, flows, absorbed, time, inv:m.inv};
+  const post = {issue:m.issue * 60, payWait:m.payWait * 3600, dlv:m.dlv * 86400};
+  return {visits, flows, absorbed, time, post, inv:m.inv};
 }
 
 /* Когорты. */
@@ -513,7 +520,7 @@ function selectCohorts(all, f){
 
 /* Агрегация по списку когорт. */
 function aggregate(list, scale){
-  const A = {sessions:0, visits:{}, flows:{}, timeNum:{}, absorbed:{}, doneInv:0, doneCard:0};
+  const A = {sessions:0, visits:{}, flows:{}, timeNum:{}, absorbed:{}, postNum:{issue:0, payWait:0, dlv:0}, postDen:{issue:0, payWait:0, dlv:0}};
   list.forEach(c => {
     const S = c.sessions * scale; A.sessions += S;
     Object.entries(c.sim.visits).forEach(([n, v]) => {
@@ -522,40 +529,49 @@ function aggregate(list, scale){
     });
     Object.entries(c.sim.flows).forEach(([e, v]) => { A.flows[e] = (A.flows[e] || 0) + v * S; });
     Object.entries(c.sim.absorbed).forEach(([k, v]) => { A.absorbed[k] = (A.absorbed[k] || 0) + v * S; });
+    const f = e => (c.sim.flows[e] || 0) * S;
+    [['issue','pay>inv'],['payWait','inv>paid'],['dlv','paid>delivered']].forEach(([k, e]) => { A.postNum[k] += f(e) * c.sim.post[k]; A.postDen[k] += f(e); });
   });
+  A.post = {};
+  ['issue','payWait','dlv'].forEach(k => { A.post[k] = A.postDen[k] > 0 ? A.postNum[k] / A.postDen[k] : null; });
   A.time = {};
   TRANSIENT.forEach(n => { A.time[n] = A.visits[n] ? A.timeNum[n] / A.visits[n] : TARGET_TIME[n]; });
   return A;
 }
 
 const FUNNEL_STEPS = [
-  {rank:0, name:'Вошли на сайт или в ЛК', sub:'главная или вход в кабинет'},
-  {rank:1, name:'Начали искать товары', sub:'каталог, поиск, карточка товара, повторный заказ'},
-  {rank:2, name:'Добавили в корзину', sub:'хотя бы одна позиция'},
-  {rank:3, name:'Нажали «Купить»', sub:'дошли до оформления'},
-  {rank:4, name:'Дошли до оплаты или запроса счёта', sub:'выбор способа оплаты, форма счёта'},
-  {rank:5, name:'Оформили заказ или получили счёт', sub:'счёт выставлен или заказ оплачен картой'}
+  {rank:0, name:'Вошли на сайт или в ЛК'},
+  {rank:1, name:'Начали искать товары'},
+  {rank:2, name:'Добавили в корзину'},
+  {rank:3, name:'Нажали «Купить»'},
+  {rank:4, name:'Дошли до оплаты или запроса счёта'},
+  {rank:5, name:'Заказ оформлен: счёт или оплата картой'},
+  {rank:6, name:'Оплатили заказ'},
+  {rank:7, name:'Доставлено успешно'}
 ];
 
 function funnel(A){
-  const reach = [0,0,0,0,0,0], stopped = FUNNEL_STEPS.map(() => ({lost:0, store:0, tele:0, done_inv:0, done_card:0}));
+  const n = FUNNEL_STEPS.length, reach = new Array(n).fill(0);
   Object.entries(A.absorbed).forEach(([k, v]) => {
     const [out, r] = k.split('|'); const rk = +r;
     for (let i = 0; i <= rk; i++) reach[i] += v;
-    stopped[rk][out] += v;
   });
-  return FUNNEL_STEPS.map((s, i) => Object.assign({}, s, {reach:reach[i], stopped:stopped[i]}));
+  return FUNNEL_STEPS.map((s, i) => Object.assign({}, s, {reach:reach[i]}));
 }
 
 function nodeMetrics(A){
   const M = {};
   TRANSIENT.forEach(n => {
-    const v = A.visits[n] || 0, g = e => A.flows[n + '>' + e] || 0;
+    const v = A.visits[n] || 0, g = e => A.flows[n + '>' + e] || 0, lk = LOST_KEY[n] || 'lost';
     let loops = 0; Object.keys(A.flows).forEach(e => { if (e.startsWith(n + '>') && LOOP_EDGES.has(e)) loops += A.flows[e]; });
-    M[n] = {visits:v, lost:g('lost'), store:g('store'), tele:g('tele'), loops,
-      lostR: v ? g('lost') / v : 0, loopR: v ? loops / v : 0, offR: v ? (g('store') + g('tele')) / v : 0,
-      time:A.time[n], target:TARGET_TIME[n], ratio:A.time[n] / TARGET_TIME[n]};
+    let time = A.time[n];
+    if (n === 'inv') time = A.post.issue; if (n === 'paid') time = A.post.payWait;
+    M[n] = {visits:v, lost:g(lk), store:g('store'), tele:g('tele'), loops,
+      lostR: v ? g(lk) / v : 0, loopR: v ? loops / v : 0, offR: v ? (g('store') + g('tele')) / v : 0,
+      time, target:TARGET_TIME[n], ratio:time ? time / TARGET_TIME[n] : 0};
   });
+  const dv = A.flows['paid>delivered'] || 0;
+  M.delivered = {visits:dv, lost:0, store:0, tele:0, loops:0, lostR:0, loopR:0, offR:0, time:A.post.dlv || 0, target:TARGET_DLV, ratio:A.post.dlv ? A.post.dlv / TARGET_DLV : 0};
   return M;
 }
 
@@ -582,26 +598,40 @@ const HYP = {
   'pay:offline':'Счёт просят выставить по телефону или в магазине',
   'pay:time':'Длинная форма: реквизиты вводятся вручную'
 };
+HYP['inv:time']='Счёт выставляют вручную: клиент не ждёт и уходит с оплаты';
+HYP['inv:lost']='Счёт получен, но не оплачен: нет напоминаний и быстрой оплаты';
+HYP['paid:lost']='Оплаченный заказ не доехал: проблемы со сборкой или доставкой';
+HYP['paid:time']='Оплату подтверждают долго';
+HYP['delivered:time']='Доставка дольше обещанного срока';
 const HYP_TYPE = {lost:'Причина отвала неизвестна', loop:'Причина возвратов неизвестна', time:'Шаг дольше цели', offline:'Заканчивают вне онлайна'};
 const CHECK_TYPE = {lost:'', loop:'', time:'', offline:''};
 const TYPE_NAME = {lost:'Отвал', loop:'Петля', time:'Долго', offline:'Уход в офлайн'};
 
 function flags(A, M){
   const total = A.sessions || 1, out = [];
-  TRANSIENT.forEach(n => {
-    const m = M[n]; if (m.visits < total * 0.01) return;
+  TRANSIENT.concat(['delivered']).forEach(n => {
+    const m = M[n]; if (m.visits < total * 0.005) return;
     const push = (type, ratio, impact, metric, extra) => {
       const sev = ratio >= 1.35 ? 'high' : 'mid';
       const score = type === 'time' ? impact * Math.max(0, (extra && extra.value || 1) - 1) : impact;
       out.push(Object.assign({node:n, type, sev, ratio, impact, score, metric,
         hyp: HYP[n + ':' + type] || HYP_TYPE[type], check: CHECK_TYPE[type]}, extra || {}));
     };
-    if (m.lostR > TH.lost[n] * 1.08) push('lost', m.lostR / TH.lost[n], m.lost / total, 'lost', {value:m.lostR, th:TH.lost[n], count:m.lost});
-    if (m.loopR > TH.loop[n] * 1.08) push('loop', m.loopR / TH.loop[n], m.loops / total, 'loop', {value:m.loopR, th:TH.loop[n], count:m.loops});
-    if (m.offR > TH.offline[n] * 1.08) push('offline', m.offR / TH.offline[n], (m.store + m.tele) / total, 'offline', {value:m.offR, th:TH.offline[n], count:m.store + m.tele, store:m.store, tele:m.tele});
-    if (m.ratio > TH.time * 1.0) push('time', m.ratio / TH.time, m.visits / total, 'time', {value:m.ratio, th:TH.time, count:m.visits});
+    if (TH.lost[n] && m.lostR > TH.lost[n] * 1.08) push('lost', m.lostR / TH.lost[n], m.lost / total, 'lost', {value:m.lostR, th:TH.lost[n], count:m.lost});
+    if (TH.loop[n] && m.loopR > TH.loop[n] * 1.08) push('loop', m.loopR / TH.loop[n], m.loops / total, 'loop', {value:m.loopR, th:TH.loop[n], count:m.loops});
+    if (TH.offline[n] && m.offR > TH.offline[n] * 1.08) push('offline', m.offR / TH.offline[n], (m.store + m.tele) / total, 'offline', {value:m.offR, th:TH.offline[n], count:m.store + m.tele, store:m.store, tele:m.tele});
+    if (m.ratio > TH.time) push('time', m.ratio / TH.time, m.visits / total, 'time', {value:m.ratio, th:TH.time, count:m.visits});
   });
-  out.sort((a, b) => (a.sev === b.sev ? b.score - a.score : (a.sev === 'high' ? -1 : 1)));
+  /* Закреплённый барьер: счёт выставляется долго -> уходят на оплате. */
+  const iv = M.inv, py = M.pay;
+  if (iv.visits > total * 0.005 && iv.ratio > TH.time) {
+    const i = out.findIndex(f => f.node === 'inv' && f.type === 'time'); if (i >= 0) out.splice(i, 1);
+    const lostPay = py.lost;
+    out.unshift({node:'inv', type:'time', sev:iv.ratio >= 1.35 * 1.3 ? 'high' : 'mid', ratio:iv.ratio / TH.time, impact:lostPay / total, score:1e9, metric:'invoice', pinned:true,
+      value:iv.ratio, th:TH.time, count:iv.visits, seconds:iv.time, target:TARGET_TIME.inv, lostPay, lostPayR:py.lostR,
+      hyp:HYP['inv:time'], check:''});
+  }
+  out.sort((a, b) => (a.pinned ? -1 : b.pinned ? 1 : a.sev === b.sev ? b.score - a.score : (a.sev === 'high' ? -1 : 1)));
   return out;
 }
 
@@ -612,7 +642,12 @@ const nf = new Intl.NumberFormat('ru-RU');
 const fmt = v => nf.format(Math.round(v));
 const fmtC = v => v >= 100000 ? nf.format(Math.round(v / 1000)) + ' тыс.' : nf.format(Math.round(v));
 const pct = (x, d) => (x * 100).toFixed(d === undefined ? 1 : d).replace('.', ',') + '%';
-const sec = v => Math.round(v) + ' с';
+const sec = v => {
+  if (v < 90) return Math.round(v) + ' с';
+  if (v < 5400) return Math.round(v / 60) + ' мин';
+  if (v < 129600) return (v / 3600).toFixed(1).replace('.', ',') + ' ч';
+  return (v / 86400).toFixed(1).replace('.', ',') + ' дн.';
+};
 const ratioStr = r => '×' + r.toFixed(1).replace('.', ',');
 const ALL = buildCohorts();
 const BASE = aggregate(ALL, 1);
@@ -657,15 +692,15 @@ function renderKpis(){
   const conv = F[5].reach / tot;
   const d = (conv - BASE_CONV) * 100;
   const delta = Math.abs(d) < 0.05 ? 'как по всем клиентам' : `${Math.abs(d).toFixed(1).replace('.', ',')} п.п. ${d > 0 ? 'выше' : 'ниже'}, чем по всем клиентам`;
-  const inv = A.flows['pay>done_inv'] || 0, card = A.flows['pay>done_card'] || 0;
   const sum = e => TRANSIENT.reduce((a, n) => a + (A.flows[n + '>' + e] || 0), 0);
   const store = sum('store'), tele = sum('tele');
   const hi = FL.filter(f => f.sev === 'high').length, mid = FL.length - hi;
   const tp = S.tp === 'all' ? 'сайт и ЛК' : S.tp === 'site' ? 'сайт' : 'ЛК';
   $('kpis').innerHTML = [
     ['Сессий на входе', fmt(tot), `за ${S.days} дней · ${tp}`],
-    ['Дошли до заказа или счёта', pct(conv), `${fmt(F[5].reach)} сессий · ${delta}`],
-    ['Получили счёт', fmt(inv), `${pct(inv / tot, 2)} сессий · картой оплатили ${fmt(card)}`],
+    ['Оформили заказ', pct(conv), `${fmt(F[5].reach)} сессий · ${delta}`],
+    ['Оплатили заказ', pct(F[6].reach / (F[5].reach || 1), 0), `${fmt(F[6].reach)} из ${fmt(F[5].reach)} оформленных`],
+    ['Доставлено успешно', pct(F[7].reach / (F[6].reach || 1), 0), `${fmt(F[7].reach)} из ${fmt(F[6].reach)} оплаченных`],
     ['Ушли в офлайн', pct((store + tele) / tot), `магазин ${pct(store / tot)} · телемаркетинг ${pct(tele / tot)}`],
     ['Проблемных зон', String(FL.length), `высокая: ${hi} · средняя: ${mid}`]
   ].map(([l, v, s]) => `<div class="kpi"><div class="kpi__label">${l}</div><div class="kpi__val num">${v}</div><div class="kpi__sub">${s}</div></div>`).join('');
@@ -677,23 +712,20 @@ function renderFunnel(){
   for (let i = 1; i < F.length; i++){ const c = F[i].reach / (F[i - 1].reach || 1); if (c < worstV){ worstV = c; worst = i; } }
   let html = F.map((s, i) => {
     const share = s.reach / r0;
-    let bar;
-    if (i === 5){
-      const wi = (s.stopped.done_inv / r0) * 100, wc = (s.stopped.done_card / r0) * 100;
-      bar = `<i style="width:${wi}%;min-width:${wi > 0 ? 3 : 0}px;background:var(--c-inv)"></i><i style="width:${wc}%;min-width:${wc > 0 ? 3 : 0}px;background:var(--c-ok)"></i>`;
-    } else bar = `<i style="width:${share * 100}%;min-width:3px;background:var(--c-inv)"></i>`;
-    let meta = i ? `<b>${pct(s.reach / (F[i - 1].reach || 1))}</b> от предыдущего шага` : '';
-    if (i === 5) meta += ` · счёт ${fmt(s.stopped.done_inv)}, картой ${fmt(s.stopped.done_card)}`;
+    const bar = `<i style="width:${share * 100}%;min-width:3px;background:var(--c-inv)"></i>`;
+    const meta = i ? `<b>${pct(s.reach / (F[i - 1].reach || 1))}</b> от предыдущего шага` : '';
     const bn = i === worst ? `<span class="badge">${flagIcon('var(--c-sev-high)')}Узкое место</span>` : '';
     return `<div class="fstep"><div class="fstep__top"><span class="fstep__name">${s.name} ${bn}</span><span class="fstep__val">${fmt(s.reach)} · ${pct(share)}</span></div>
       <div class="bar" role="img" aria-label="${s.name}: ${pct(share)} входа">${bar}</div>${meta ? `<div class="fstep__meta">${meta}</div>` : ''}</div>`;
   }).join('');
-  html += `<div class="fstep fstep--nodata"><div class="fstep__top"><span class="fstep__name">Оплатили счёт</span><span class="fstep__val muted">нет данных на сайте</span></div></div>`;
   $('funnel').innerHTML = html;
 }
 
 function flagMetric(f){
   const m = CUR.NM[f.node];
+  if (f.metric === 'invoice') return `Счёт выставляют <b>${sec(f.seconds)}</b> · цель ${sec(f.target)}. На оплате уходят <b>${pct(f.lostPayR, 0)}</b> (${fmt(f.lostPay)})`;
+  if (f.node === 'inv' && f.type === 'lost') return `<b>${pct(f.value, 0)}</b> получили счёт, но не оплатили · порог ${pct(f.th, 0)}`;
+  if (f.node === 'paid' && f.type === 'lost') return `<b>${pct(f.value, 0)}</b> оплатили, но не получили заказ · порог ${pct(f.th, 0)}`;
   if (f.type === 'lost') return `<b>${pct(f.value, 0)}</b> уходят без заказа · порог ${pct(f.th, 0)}`;
   if (f.type === 'loop') return `<b>${pct(f.value, 0)}</b> повторяют шаг или возвращаются · порог ${pct(f.th, 0)}`;
   if (f.type === 'time') return `<b>${sec(m.time)}</b> на шаге · цель ${sec(m.target)}`;
@@ -703,7 +735,7 @@ function flagMetric(f){
 function renderFlags(){
   const {FL} = CUR, N = 4, list = showAll ? FL : FL.slice(0, N);
   $('flags').innerHTML = list.length ? list.map(f => `<li><div class="flag" role="button" tabindex="0" data-node="${f.node}" aria-pressed="${sel === f.node}">
-      <div class="flag__top"><span class="sev">${flagIcon(sevColor(f.sev))}${sevText(f.sev)}</span><span class="typechip">${TYPE_NAME[f.type]}</span><span class="flag__node">${NODE_NAME[f.node]}</span></div>
+      <div class="flag__top"><span class="sev">${flagIcon(sevColor(f.sev))}${sevText(f.sev)}</span><span class="typechip">${TYPE_NAME[f.type]}</span><span class="flag__node">${f.pinned ? 'Счёт для ПРО выставляется долго' : NODE_NAME[f.node]}</span></div>
       <div class="flag__metric">${flagMetric(f)}</div>
       <div class="flag__hyp">${f.hyp}</div></div></li>`).join('')
     : `<li class="empty">В этом срезе ни один шаг не превышает пороги.</li>`;
@@ -712,24 +744,44 @@ function renderFlags(){
 }
 
 /* ---------- Карта процесса ---------- */
-const NW = 132, NH = 54;
+const NW = 128, NH = 54;
 const POS = {
-  home:{x:80,y:300}, search:{x:255,y:300}, pdp:{x:430,y:300}, cart:{x:605,y:300}, checkout:{x:780,y:300}, pay:{x:955,y:300},
-  login:{x:80,y:170}, reorder:{x:255,y:170},
-  done_inv:{x:1130,y:235}, done_card:{x:1130,y:365},
-  lost:{x:330,y:545,w:172}, store:{x:655,y:545,w:172}, tele:{x:980,y:545,w:172}
+  home:{x:72,y:300}, search:{x:237,y:300}, pdp:{x:402,y:300}, cart:{x:567,y:300}, checkout:{x:732,y:300}, pay:{x:897,y:300},
+  login:{x:72,y:170}, reorder:{x:237,y:170},
+  inv:{x:1062,y:190}, paid:{x:1062,y:300}, delivered:{x:1062,y:410},
+  unpaid:{x:1228,y:190,w:124}, undel:{x:1228,y:300,w:124},
+  lost:{x:260,y:545,w:172}, store:{x:560,y:545,w:172}, tele:{x:860,y:545,w:172}
 };
 Object.values(POS).forEach(p => { p.w = p.w || NW; p.h = NH; });
 const MAIN = ['home','search','pdp','cart','checkout','pay'];
 const bz = (p, t) => { const u = 1 - t; return [u*u*u*p[0] + 3*u*u*t*p[2] + 3*u*t*t*p[4] + t*t*t*p[6], u*u*u*p[1] + 3*u*u*t*p[3] + 3*u*t*t*p[5] + t*t*t*p[7]]; };
 const cubic = (p, dx, dy) => { const m = bz(p, .5); return {d:`M${p[0]},${p[1]} C${p[2]},${p[3]} ${p[4]},${p[5]} ${p[6]},${p[7]}`, lx:m[0] + (dx || 0), ly:m[1] + (dy || 0)}; };
 const line = (x0, y0, x1, y1, dx, dy) => ({d:`M${x0},${y0} L${x1},${y1}`, lx:(x0 + x1) / 2 + (dx || 0), ly:(y0 + y1) / 2 + (dy || 0)});
+const LOST_LIKE = ['lost','unpaid','undel'];
 
 function geom(a, b){
   const A = POS[a], B = POS[b], top = A.y - NH / 2;
   if (a === b) return cubic([A.x - 18, top, A.x - 44, top - 42, A.x + 44, top - 42, A.x + 18, top], 0, -6);
+  const key = a + '>' + b;
+  switch (key){
+    case 'login>home': return line(58, 197, 58, 273, -22, 0);
+    case 'home>login': return line(86, 273, 86, 197, 22, 0);
+    case 'login>reorder': return line(136, 170, 173, 170, 0, -10);
+    case 'login>search': return line(126, 197, 215, 273, 18, 0);
+    case 'reorder>search': return line(251, 197, 251, 273, 22, 0);
+    case 'reorder>cart': return cubic([301, 170, 450, 170, 567, 205, 567, 273], 0, -8);
+    case 'login>pay': return cubic([72, 143, 72, 40, 897, 40, 897, 273], 0, -6);
+    case 'checkout>login': return cubic([720, 273, 720, 112, 320, 80, 136, 150], 0, -6);
+    case 'pay>login': return cubic([885, 273, 885, 100, 330, 56, 136, 150], 0, -6);
+    case 'pay>inv': return line(961, 284, 998, 205, 6, -12);
+    case 'pay>paid': return line(961, 306, 998, 306, 0, 16);
+    case 'inv>paid': return line(1062, 217, 1062, 273, 24, 0);
+    case 'paid>delivered': return line(1062, 327, 1062, 383, 24, 0);
+    case 'inv>unpaid': return line(1126, 190, 1166, 190, 0, -10);
+    case 'paid>undel': return line(1126, 300, 1166, 300, 0, -10);
+  }
   if (EXITS.includes(b)){
-    const sx = A.x + (EXITS.indexOf(b) - 1) * 24, sy = A.y + NH / 2, tx = B.x + (TRANSIENT.indexOf(a) - 3.5) * 15, ty = B.y - NH / 2, h = (ty - sy) / 2;
+    const sx = A.x + (EXITS.indexOf(b) - 1) * 24, sy = A.y + NH / 2, tx = B.x + (TRANSIENT.indexOf(a) - 4.5) * 13, ty = B.y - NH / 2, h = (ty - sy) / 2;
     return cubic([sx, sy, sx, sy + h, tx, ty - h, tx, ty], 0, 0);
   }
   const ia = MAIN.indexOf(a), ib = MAIN.indexOf(b);
@@ -742,20 +794,6 @@ function geom(a, b){
     const dir = Math.sign(diff), h = 58, sx = A.x + dir * 24, ex = B.x - dir * 24;
     return cubic([sx, top, sx, top - h * 1.33, ex, top - h * 1.33, ex, top], 0, -6);
   }
-  const key = a + '>' + b;
-  switch (key){
-    case 'login>home': return line(64, 197, 64, 273, -22, 0);
-    case 'home>login': return line(96, 273, 96, 197, 22, 0);
-    case 'login>reorder': return line(146, 170, 189, 170, 0, -10);
-    case 'login>search': return line(126, 197, 215, 273, 18, 0);
-    case 'reorder>search': return line(269, 197, 269, 273, 22, 0);
-    case 'reorder>cart': return cubic([321, 170, 470, 170, 605, 205, 605, 273], 0, -8);
-    case 'login>pay': return cubic([80, 143, 80, 40, 955, 40, 955, 273], 0, -6);
-    case 'checkout>login': return cubic([768, 273, 768, 112, 320, 80, 146, 150], 0, -6);
-    case 'pay>login': return cubic([943, 273, 943, 100, 330, 56, 146, 150], 0, -6);
-    case 'pay>done_inv': return line(1021, 292, 1064, 242, 4, -14);
-    case 'pay>done_card': return line(1021, 308, 1064, 358, 4, 20);
-  }
   return line(A.x, A.y, B.x, B.y);
 }
 
@@ -763,30 +801,32 @@ function renderGraph(){
   const {A, NM, FL} = CUR, tot = A.sessions || 1;
   const flagByNode = {};
   FL.forEach(f => { const c = flagByNode[f.node]; if (!c || (c === 'mid' && f.sev === 'high')) flagByNode[f.node] = f.sev; });
-  const SKIP = new Set(['home>login','login>home','login>pay','home>pdp','reorder>search']);
+  const SKIP = new Set(['home>login','login>home','login>pay','home>pdp','reorder>search','inv>store','inv>tele']);
+  const POST = ['inv','paid','delivered','unpaid','undel'];
   const loopNodes = new Set(FL.filter(f => f.type === 'loop').map(f => f.node));
   const offNodes = new Set(FL.filter(f => f.type === 'offline').map(f => f.node));
   const lostNodes = new Set(FL.filter(f => f.type === 'lost').map(f => f.node));
   const all = Object.keys(A.flows), show = new Set();
-  all.forEach(k => { const b = k.split('>')[1]; if (!EXITS.includes(b) && !LOOP_EDGES.has(k) && !SKIP.has(k) && A.flows[k] >= tot * (DONE.includes(b) ? 0.005 : 0.03)) show.add(k); });
+  all.forEach(k => { const [a, b] = k.split('>'); if (!EXITS.includes(b) && !LOOP_EDGES.has(k) && !SKIP.has(k) && A.flows[k] >= tot * (POST.includes(b) ? 0.002 : MAIN.includes(a) && MAIN.indexOf(b) === MAIN.indexOf(a) + 1 ? 0.008 : 0.03)) show.add(k); });
   loopNodes.forEach(n => all.filter(k => k.startsWith(n + '>') && LOOP_EDGES.has(k) && A.flows[k] >= tot * 0.015).sort((x, y) => A.flows[y] - A.flows[x]).slice(0, 2).forEach(k => show.add(k)));
   EXITS.forEach(e => {
-    all.filter(k => k.endsWith('>' + e)).sort((x, y) => A.flows[y] - A.flows[x]).slice(0, 2).forEach(k => show.add(k));
-    all.filter(k => k.endsWith('>' + e) && A.flows[k] >= tot * 0.01 && (e === 'lost' ? lostNodes : offNodes).has(k.split('>')[0])).forEach(k => show.add(k));
+    all.filter(k => k.endsWith('>' + e) && !SKIP.has(k)).sort((x, y) => A.flows[y] - A.flows[x]).slice(0, 2).forEach(k => show.add(k));
+    all.filter(k => k.endsWith('>' + e) && A.flows[k] >= tot * 0.01 && !SKIP.has(k) && (e === 'lost' ? lostNodes : offNodes).has(k.split('>')[0])).forEach(k => show.add(k));
   });
+  if (FL.some(f => f.pinned) && A.flows['pay>lost']) show.add('pay>lost');
   const keys = [...show];
   const maxF = Math.max.apply(null, keys.map(k => A.flows[k]));
   let edges = '', labels = '';
   keys.forEach(k => {
     const [a, b] = k.split('>'), f = A.flows[k], g = geom(a, b);
     const cat = EXITS.includes(b) ? 'exit' : LOOP_EDGES.has(k) ? 'loop' : 'fwd';
-    const cls = cat === 'exit' ? (b === 'lost' ? 'e-lost' : 'e-store') : cat === 'loop' ? 'e-loop' : 'e-fwd';
-    const mk = cat === 'exit' ? (b === 'lost' ? 'lost' : 'off') : cat;
+    const cls = cat === 'exit' ? (LOST_LIKE.includes(b) ? 'e-lost' : 'e-store') : cat === 'loop' ? 'e-loop' : 'e-fwd';
+    const mk = cat === 'exit' ? (LOST_LIKE.includes(b) ? 'lost' : 'off') : cat;
     const w = (cat === 'exit' ? 1.4 + 4 : 1.6 + 6.4) * Math.sqrt(f / maxF);
     const op = cat === 'exit' ? .65 : .95;
     edges += `<path class="e ${cls}" data-a="${a}" data-b="${b}" data-cat="${cat}" data-op="${op}" d="${g.d}" style="stroke-width:${Math.max(1.6, w).toFixed(1)}px" marker-end="url(#mk-${mk})"/>`;
     const share = f / (A.visits[a] || 1);
-    if (share >= (cat === 'exit' ? .15 : .08)) labels += `<text class="glabel elab" data-a="${a}" data-b="${b}" data-cat="${cat}" x="${g.lx.toFixed(0)}" y="${g.ly.toFixed(0)}" text-anchor="middle">${pct(share, 0)}</text>`;
+    if (!POST.includes(b) && share >= (cat === 'exit' ? .15 : .08)) labels += `<text class="glabel elab" data-a="${a}" data-b="${b}" data-cat="${cat}" x="${g.lx.toFixed(0)}" y="${g.ly.toFixed(0)}" text-anchor="middle">${pct(share, 0)}</text>`;
   });
   let nodes = '';
   NODE_IDS.forEach(n => {
@@ -804,11 +844,12 @@ function renderGraph(){
   });
   const mk = (id, c) => `<marker id="mk-${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="mk-${c}"/></marker>`;
   $('graph').querySelector('svg')?.remove();
-  $('graph').insertAdjacentHTML('afterbegin', `<svg viewBox="0 70 1220 550" role="group" aria-label="Карта процесса">
+  $('graph').insertAdjacentHTML('afterbegin', `<svg viewBox="0 70 1300 550" role="group" aria-label="Карта процесса">
     <defs>${mk('fwd', 'fwd')}${mk('loop', 'loop')}${mk('lost', 'lost')}${mk('off', 'off')}</defs>
-    <rect class="gband" x="8" y="124" width="440" height="92" rx="8"/><text class="gcap" x="18" y="138">ЛИЧНЫЙ КАБИНЕТ</text>
-    <rect class="gband" x="8" y="490" width="1204" height="112" rx="8"/><text class="gcap" x="18" y="482">ВЫХОДЫ ИЗ ОНЛАЙНА</text>
-    <text class="gcap" x="1130" y="186" text-anchor="middle">РЕЗУЛЬТАТ</text>
+    <rect class="gband" x="8" y="124" width="340" height="92" rx="8"/><text class="gcap" x="18" y="138">ЛИЧНЫЙ КАБИНЕТ</text>
+    <rect class="gband" x="984" y="124" width="312" height="334" rx="8"/><text class="gcap" x="994" y="138">ПОСЛЕ ЗАКАЗА</text>
+    <rect class="gband" x="8" y="490" width="960" height="112" rx="8"/><text class="gcap" x="18" y="482">ВЫХОДЫ ИЗ ОНЛАЙНА</text>
+    
     ${edges}${nodes}${labels}</svg>`);
   applyHighlight();
 }
@@ -832,7 +873,7 @@ function nodeTip(n){
   const {A, NM} = CUR, tot = A.sessions || 1;
   let h = `<b>${NODE_NAME[n]}</b>`;
   if (NODE_HINT[n]) h += `<div>${NODE_HINT[n]}</div>`;
-  if (TRANSIENT.includes(n)){
+  if (TRANSIENT.includes(n) || n === 'delivered'){
     const m = NM[n];
     h += `<div>Визитов: ${fmt(m.visits)} (${pct(m.visits / tot)} от сессий, с повторами)</div><div>Типичное время: ${sec(m.time)}, цель ${sec(m.target)}</div>`;
     const out = Object.keys(A.flows).filter(k => k.startsWith(n + '>')).map(k => [k.split('>')[1], A.flows[k]]).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -868,7 +909,7 @@ function renderLegend(){
 }
 
 function renderTimes(){
-  const {NM} = CUR, ids = TRANSIENT.filter(n => NM[n].visits > 0);
+  const {NM} = CUR, ids = TRANSIENT.concat(['delivered']).filter(n => NM[n].visits > 0 && NM[n].time > 0);
   const mx = Math.max.apply(null, ids.map(n => Math.max(NM[n].time, NM[n].target))) * 1.1;
   $('times').innerHTML = ids.map(n => {
     const m = NM[n], over = m.ratio > TH.time;
@@ -882,10 +923,10 @@ function renderTimes(){
 function renderTable(){
   const {NM, FL} = CUR, key = {}; FL.forEach(f => { key[f.node + ':' + f.type] = f.sev; });
   const cell = (n, type, txt) => { const s = key[n + ':' + type]; return `<td class="${s ? 'hit' + (s === 'high' ? ' hi' : '') : ''}">${txt}</td>`; };
-  const ids = TRANSIENT.filter(n => NM[n].visits > 0);
+  const ids = TRANSIENT.concat(['delivered']).filter(n => NM[n].visits > 0);
   $('tbl').innerHTML = `<thead><tr><th>Шаг</th><th>Визиты</th><th>Время (цель)</th><th>Отвал</th><th>Петли и возвраты</th><th>В магазин</th><th>В телемаркетинг</th><th>Барьеры</th></tr></thead><tbody>` +
     ids.map(n => { const m = NM[n], v = m.visits || 1, fl = FL.filter(f => f.node === n).map(f => TYPE_NAME[f.type].toLowerCase());
-      return `<tr data-node="${n}" class="${sel === n ? 'is-sel' : ''}"><td>${NODE_NAME[n]}</td><td>${fmt(m.visits)}</td>${cell(n, 'time', sec(m.time) + ' (' + m.target + ')')}${cell(n, 'lost', pct(m.lostR))}${cell(n, 'loop', pct(m.loopR))}${cell(n, 'offline', pct(m.store / v))}${cell(n, 'offline', pct(m.tele / v))}<td style="text-align:left">${fl.length ? fl.join(', ') : '—'}</td></tr>`; }).join('') + '</tbody>';
+      return `<tr data-node="${n}" class="${sel === n ? 'is-sel' : ''}"><td>${NODE_NAME[n]}</td><td>${fmt(m.visits)}</td>${cell(n, 'time', sec(m.time) + ' (' + sec(m.target) + ')')}${cell(n, 'lost', pct(m.lostR))}${cell(n, 'loop', pct(m.loopR))}${cell(n, 'offline', pct(m.store / v))}${cell(n, 'offline', pct(m.tele / v))}<td style="text-align:left">${fl.length ? fl.join(', ') : '—'}</td></tr>`; }).join('') + '</tbody>';
 }
 
 function updateSel(){
